@@ -12,8 +12,10 @@
 - 📂 **Drive** - List, search, upload, and download files. Built-in export for Google Workspace docs (PDF/Docx/Xlsx).
 - 🗓️ **Calendar** - Manage events, check free/busy status, and RSVP to invitations.
 - ✅ **Tasks** - Full management of task lists and individual tasks.
+- 🤖 **Natural Language Agent** - Ask `pygog` to do things in plain English. Supports DeepSeek, OpenAI, Gemini, & Anthropic.
+- 🌐 **Web Search** - Real-time access to news, prices, and weather via the agent.
 - 🔑 **Secure** - Built-in OS-level keyring support for storing sensitive tokens.
-- 🤖 **Developer Friendly** - JSON output for everything. Perfect for automation scripts.
+- 💻 **Developer Friendly** - JSON output for everything. Perfect for automation scripts.
 - 👥 **Multi-Account** - Manage multiple Google accounts with easy aliasing.
 
 ---
@@ -99,8 +101,38 @@ pygog tasks lists
 pygog tasks list <TASKLIST_ID>
 
 # Add a new task
-pygog tasks add <TASKLIST_ID> --title "Finish README" --due "2026-01-30"
 ```
+
+### 🧠 Natural Language Agent (`ask`)
+Interact with your Google Workspace and the Web using natural language.
+
+1. **Set your API Key** (choose one):
+   ```bash
+   $env:DEEPSEEK_API_KEY = "sk-..." 
+   $env:OPENAI_API_KEY = "sk-..."
+   $env:GEMINI_API_KEY = "AIza..."
+   $env:ANTHROPIC_API_KEY = "sk-ant..."
+   $env:OPENROUTER_API_KEY = "sk-or..."
+   ```
+
+2. **Ask away**:
+   ```bash
+   # Email & Drive
+   pygog ask "Find the Q4 report PDF and email it to my boss"
+   
+   # Calendar & Tasks
+   pygog ask "What meetings do I have this week?"
+   pygog ask "Remind me to call John tomorrow at 2pm"
+   
+   # Web Search
+   pygog ask "What is the gold price in Delhi today?"
+   pygog ask "Latest tech news"
+   ```
+
+3. **Select Model** (optional):
+   ```bash
+   pygog ask "Summarize my emails" --model gpt-4o
+   ```
 
 ---
 
