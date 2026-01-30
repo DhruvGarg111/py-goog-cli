@@ -9,8 +9,8 @@ from rich.console import Console
 
 from pygog import __version__
 from pygog.config import get_config
+from pygog.commands import auth, config_cmd, time_cmd, gmail, calendar, drive, tasks, ask
 
-# Create main app
 app = typer.Typer(
     name="pygog",
     help="pygog - Google in your terminal.\n\nFast, script-friendly CLI for Gmail, Calendar, Drive, Tasks, and more.",
@@ -18,15 +18,11 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 
-# Console for output
 console = Console()
 err_console = Console(stderr=True)
 
 
-# Global state
 class State:
-    """Global CLI state."""
-
     def __init__(self):
         self.account: str | None = None
         self.client: str = "default"
@@ -46,7 +42,6 @@ state = State()
 
 
 def version_callback(value: bool):
-    """Print version and exit."""
     if value:
         console.print(f"pygog version {__version__}")
         raise typer.Exit()
@@ -110,10 +105,8 @@ def main(
         help="Show version and exit",
     ),
 ):
-    """Global options callback."""
     config = get_config()
     
-    # Set state from args, falling back to config/env
     state.account = config.resolve_account(account)
     state.client = client or config.client
     state.json_output = json_output or config.json_output
@@ -123,7 +116,6 @@ def main(
     state.force = force
     state.no_input = no_input
     
-    # Configure console based on color mode
     if color == "never":
         console._force_terminal = False
         err_console._force_terminal = False
@@ -132,22 +124,14 @@ def main(
         err_console._force_terminal = True
 
 
-# Import and register command groups
-from pygog.commands import auth, config_cmd, time_cmd
-
 app.add_typer(auth.app, name="auth", help="Manage authentication and accounts")
 app.add_typer(config_cmd.app, name="config", help="Manage configuration")
 app.add_typer(time_cmd.app, name="time", help="Display time information")
-
-# Import service commands (will be added as they're implemented)
-from pygog.commands import gmail, calendar, drive, tasks
 
 app.add_typer(gmail.app, name="gmail", help="Gmail operations")
 app.add_typer(calendar.app, name="calendar", help="Calendar operations")
 app.add_typer(drive.app, name="drive", help="Drive operations")
 app.add_typer(tasks.app, name="tasks", help="Tasks operations")
 
-# Agent command
-from pygog.commands import ask
 app.add_typer(ask.app, name="ask", help="Ask using natural language")
 
