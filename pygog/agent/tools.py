@@ -7,10 +7,6 @@ from typing import Optional
 from pygog.agent.registry import register_tool
 
 
-# =============================================================================
-# Web Search Tools
-# =============================================================================
-
 @register_tool()
 def web_search(query: str, max_results: int = 5) -> list[dict]:
     """Search the web for real-time information like prices, news, weather, etc.
@@ -69,10 +65,6 @@ def web_news(query: str, max_results: int = 5) -> list[dict]:
     return results
 
 
-# =============================================================================
-# Gmail Tools
-# =============================================================================
-
 @register_tool()
 def gmail_search(query: str, max_results: int = 10, account: Optional[str] = None) -> list[dict]:
     """Search for emails in Gmail.
@@ -90,24 +82,20 @@ def gmail_search(query: str, max_results: int = 10, account: Optional[str] = Non
     service = GmailService(account=account)
     response = service.search_threads(query=query, max_results=max_results)
     
-    # Get the threads list from the response
     threads = response.get("threads", [])
-    
-    # Simplify for the agent
     results = []
+    
     for thread_info in threads:
         thread_id = thread_info.get("id")
         if not thread_id:
             continue
         
-        # Fetch the full thread to get message details
         try:
             thread = service.get_thread(thread_id, format="metadata")
             messages = thread.get("messages", [])
             if not messages:
                 continue
                 
-            # Get the first message for headers
             msg = messages[0]
             headers = {h["name"].lower(): h["value"] for h in msg.get("payload", {}).get("headers", [])}
             
@@ -119,7 +107,6 @@ def gmail_search(query: str, max_results: int = 10, account: Optional[str] = Non
                 "snippet": thread.get("snippet", "")[:100],
             })
         except Exception:
-            # Skip threads we can't fetch
             continue
     
     return results
@@ -202,10 +189,6 @@ def gmail_labels(account: Optional[str] = None) -> list[dict]:
     return [{"id": l["id"], "name": l.get("name", l["id"]), "type": l.get("type", "user")} for l in labels]
 
 
-# =============================================================================
-# Drive Tools
-# =============================================================================
-
 @register_tool()
 def drive_list(folder_id: Optional[str] = None, max_results: int = 20, account: Optional[str] = None) -> list[dict]:
     """List files in Google Drive.
@@ -248,7 +231,6 @@ def drive_search(query: str, max_results: int = 20, account: Optional[str] = Non
     
     service = DriveService(account=account)
     
-    # Convert simple queries to Drive query format
     if ":" not in query and "contains" not in query:
         query = f"name contains '{query}'"
     
@@ -306,14 +288,10 @@ def drive_share(file_id: str, email: str, role: str = "reader", account: Optiona
     from pygog.services.drive import DriveService
     
     service = DriveService(account=account)
-    result = service.share_file(file_id=file_id, email=email, role=role)
+    service.share_file(file_id=file_id, email=email, role=role)
     
     return {"status": "shared", "file_id": file_id, "shared_with": email, "role": role}
 
-
-# =============================================================================
-# Calendar Tools
-# =============================================================================
 
 @register_tool()
 def calendar_events(days: int = 7, calendar_id: str = "primary", account: Optional[str] = None) -> list[dict]:
@@ -327,10 +305,21 @@ def calendar_events(days: int = 7, calendar_id: str = "primary", account: Option
     Returns:
         List of upcoming events with summary, time, and attendees
     """
+    from datetime import datetime, timedelta
     from pygog.services.calendar import CalendarService
     
     service = CalendarService(account=account)
-    events = service.list_events(calendar_id=calendar_id, days=days)
+    
+    now = datetime.now()
+    time_min = now
+    time_max = now + timedelta(days=days)
+    
+    response = service.list_events(
+        calendar_id=calendar_id,
+        time_min=time_min,
+        time_max=time_max,
+    )
+    events = response.get("items", [])
     
     result = []
     for event in events:
@@ -360,10 +349,22 @@ def calendar_search(query: str, days: int = 30, account: Optional[str] = None) -
     Returns:
         List of matching events
     """
+    from datetime import datetime, timedelta
     from pygog.services.calendar import CalendarService
     
     service = CalendarService(account=account)
-    events = service.search_events(query=query, days=days)
+    
+    now = datetime.now()
+    time_min = now - timedelta(days=30)  # Also search past 30 days
+    time_max = now + timedelta(days=days)
+    
+    response = service.list_events(
+        calendar_id="primary",
+        time_min=time_min,
+        time_max=time_max,
+        q=query,
+    )
+    events = response.get("items", [])
     
     result = []
     for event in events:
@@ -407,6 +408,7 @@ def calendar_create(summary: str, start_time: str, end_time: str, description: O
         attendee_list = [e.strip() for e in attendees.split(",")]
     
     event = service.create_event(
+        calendar_id="primary",
         summary=summary,
         start=start_time,
         end=end_time,
@@ -417,10 +419,6 @@ def calendar_create(summary: str, start_time: str, end_time: str, description: O
     
     return {"id": event["id"], "summary": summary, "start": start_time, "status": "created"}
 
-
-# =============================================================================
-# Tasks Tools
-# =============================================================================
 
 @register_tool()
 def tasks_lists(account: Optional[str] = None) -> list[dict]:
