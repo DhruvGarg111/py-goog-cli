@@ -14,7 +14,6 @@ from pygog.config import get_config
 class BaseService:
     """Base class for Google API service wrappers."""
 
-    # Override in subclasses
     SERVICE_NAME: str = ""
     SERVICE_VERSION: str = ""
 

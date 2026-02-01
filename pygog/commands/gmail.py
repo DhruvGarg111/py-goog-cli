@@ -35,9 +35,6 @@ def should_plain() -> bool:
     return state.plain_output
 
 
-# =============================================================================
-# Labels
-# =============================================================================
 
 labels_app = typer.Typer(no_args_is_help=True, help="Manage Gmail labels")
 app.add_typer(labels_app, name="labels")
@@ -53,7 +50,6 @@ def labels_list():
         print_json({"labels": labels})
         return
 
-    # Sort by name
     labels.sort(key=lambda x: x.get("name", ""))
 
     if should_plain():
@@ -113,9 +109,6 @@ def labels_create(
     console.print(f"  ID: {label['id']}")
 
 
-# =============================================================================
-# Search
-# =============================================================================
 
 @app.command("search")
 def search_cmd(
@@ -135,7 +128,6 @@ def search_cmd(
         console.print("[yellow]No threads found.[/yellow]")
         return
 
-    # Fetch thread details for display
     detailed = []
     for t in threads[:max_results]:
         try:
@@ -168,9 +160,6 @@ def search_cmd(
     console.print(table)
 
 
-# =============================================================================
-# Messages
-# =============================================================================
 
 messages_app = typer.Typer(no_args_is_help=True, help="Message-level operations")
 app.add_typer(messages_app, name="messages")
@@ -195,7 +184,6 @@ def messages_search(
         console.print("[yellow]No messages found.[/yellow]")
         return
 
-    # Fetch message details
     detailed = []
     for m in messages[:max_results]:
         msg = m if include_body else service.get_message(m["id"], format="metadata")
@@ -231,9 +219,6 @@ def messages_search(
     console.print(table)
 
 
-# =============================================================================
-# Thread / Get
-# =============================================================================
 
 thread_app = typer.Typer(no_args_is_help=True, help="Thread operations")
 app.add_typer(thread_app, name="thread")
@@ -299,9 +284,6 @@ def get_message_cmd(
         console.print(body)
 
 
-# =============================================================================
-# Send
-# =============================================================================
 
 @app.command("send")
 def send_cmd(
@@ -316,7 +298,6 @@ def send_cmd(
     """Send an email."""
     service = get_service()
 
-    # Get body content
     email_body = body or ""
     if body_file:
         if str(body_file) == "-":
@@ -329,7 +310,6 @@ def send_cmd(
         err_console.print("[red]Error:[/red] No body provided. Use --body, --body-html, or --body-file")
         raise typer.Exit(1)
 
-    # Parse recipients
     recipients = [r.strip() for r in to.split(",")]
     cc_list = [r.strip() for r in cc.split(",")] if cc else None
     bcc_list = [r.strip() for r in bcc.split(",")] if bcc else None
@@ -351,9 +331,6 @@ def send_cmd(
     console.print(f"  Message ID: {result.get('id', '')}")
 
 
-# =============================================================================
-# URL
-# =============================================================================
 
 @app.command("url")
 def url_cmd(
@@ -365,9 +342,6 @@ def url_cmd(
     console.print(url)
 
 
-# =============================================================================
-# Thread Modify
-# =============================================================================
 
 @thread_app.command("modify")
 def thread_modify(
@@ -390,9 +364,6 @@ def thread_modify(
     console.print(f"[green][OK][/green] Thread modified: {thread_id}")
 
 
-# =============================================================================
-# Drafts
-# =============================================================================
 
 drafts_app = typer.Typer(no_args_is_help=True, help="Manage drafts")
 app.add_typer(drafts_app, name="drafts")

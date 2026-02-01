@@ -33,9 +33,6 @@ def should_plain() -> bool:
     return state.plain_output
 
 
-# =============================================================================
-# Calendars
-# =============================================================================
 
 @app.command("calendars")
 def calendars_cmd():
@@ -67,9 +64,6 @@ def calendars_cmd():
     console.print(table)
 
 
-# =============================================================================
-# Events
-# =============================================================================
 
 @app.command("events")
 def events_cmd(
@@ -85,7 +79,6 @@ def events_cmd(
     """List calendar events."""
     service = get_service()
 
-    # Determine time range
     time_min = None
     time_max = None
 
@@ -111,7 +104,6 @@ def events_cmd(
         else:
             time_max = time_min + timedelta(days=30)  # Default 30 days
     else:
-        # Default: today + 7 days
         now = datetime.now()
         time_min = now
         time_max = now + timedelta(days=7)
@@ -132,7 +124,6 @@ def events_cmd(
         console.print("[yellow]No events found.[/yellow]")
         return
 
-    # Format for display
     data = []
     for event in events:
         data.append({
@@ -202,9 +193,6 @@ def get_cmd(
     event_cmd(calendar_id, event_id)
 
 
-# =============================================================================
-# Search
-# =============================================================================
 
 @app.command("search")
 def search_cmd(
@@ -255,9 +243,6 @@ def search_cmd(
     console.print(table)
 
 
-# =============================================================================
-# Create / Update / Delete
-# =============================================================================
 
 @app.command("create")
 def create_cmd(
@@ -353,9 +338,6 @@ def delete_cmd(
     console.print(f"[green][OK][/green] Event deleted: {event_id}")
 
 
-# =============================================================================
-# Respond
-# =============================================================================
 
 @app.command("respond")
 def respond_cmd(
@@ -386,9 +368,6 @@ def respond_cmd(
     console.print(f"[green][OK][/green] Response '{status}' sent for event: {event.get('summary', event_id)}")
 
 
-# =============================================================================
-# Free/Busy
-# =============================================================================
 
 @app.command("freebusy")
 def freebusy_cmd(

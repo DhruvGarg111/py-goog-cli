@@ -16,14 +16,13 @@ def safe_print(console: Console, text: str) -> None:
     try:
         console.print(text)
     except UnicodeEncodeError:
-        # Fallback: replace common problematic characters
         safe_text = text.replace("✓", "[OK]").replace("✗", "[X]")
         safe_text = safe_text.replace("→", "->").replace("○", "[ ]")
         safe_text = safe_text.replace("·", "-")
         console.print(safe_text)
 
 
-# Windows-safe success/error prefixes
+
 if sys.platform == "win32":
     OK = "[green][OK][/green]"
     FAIL = "[red][FAIL][/red]"

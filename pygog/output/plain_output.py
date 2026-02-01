@@ -21,15 +21,12 @@ def print_plain(
     if not data:
         return
 
-    # Determine columns
     if columns is None:
         columns = list(data[0].keys())
 
-    # Print header
     if header:
         print("\t".join(columns), file=sys.stdout)
 
-    # Print rows
     for row in data:
         values = [str(row.get(col, "")).replace("\t", " ").replace("\n", " ") for col in columns]
         print("\t".join(values), file=sys.stdout)

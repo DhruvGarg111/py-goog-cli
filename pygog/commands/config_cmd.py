@@ -77,7 +77,6 @@ def set_cmd(
     """Set a configuration value."""
     config = get_config()
 
-    # Try to parse as JSON for complex values
     import json
     try:
         parsed = json.loads(value)

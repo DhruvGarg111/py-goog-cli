@@ -21,9 +21,6 @@ class GmailService(BaseService):
         """Get users API."""
         return self._get_service().users()
 
-    # =========================================================================
-    # Labels
-    # =========================================================================
 
     def list_labels(self) -> list[dict[str, Any]]:
         """List all labels.
@@ -58,9 +55,6 @@ class GmailService(BaseService):
         body = {"name": name, **kwargs}
         return self._users().labels().create(userId="me", body=body).execute()
 
-    # =========================================================================
-    # Search / Messages
-    # =========================================================================
 
     def search_threads(
         self,
@@ -113,7 +107,6 @@ class GmailService(BaseService):
 
         messages = result.get("messages", [])
         
-        # Optionally fetch full message details
         if include_body and messages:
             detailed = []
             for msg in messages:
@@ -163,9 +156,6 @@ class GmailService(BaseService):
             format=format,
         ).execute()
 
-    # =========================================================================
-    # Send / Drafts
-    # =========================================================================
 
     def send_message(
         self,
@@ -193,7 +183,6 @@ class GmailService(BaseService):
         Returns:
             Sent message dict
         """
-        # Build message
         if body_html:
             msg = MIMEMultipart("alternative")
             msg.attach(MIMEText(body, "plain"))
@@ -211,7 +200,6 @@ class GmailService(BaseService):
         if reply_to:
             msg["Reply-To"] = reply_to
 
-        # Encode
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
         
         body = {"raw": raw}
@@ -263,9 +251,6 @@ class GmailService(BaseService):
         ).execute()
         return result.get("drafts", [])
 
-    # =========================================================================
-    # Attachments
-    # =========================================================================
 
     def get_attachment(
         self,
@@ -290,9 +275,6 @@ class GmailService(BaseService):
         data = result.get("data", "")
         return base64.urlsafe_b64decode(data)
 
-    # =========================================================================
-    # Modify
-    # =========================================================================
 
     def modify_thread(
         self,
@@ -350,9 +332,6 @@ class GmailService(BaseService):
             body=body,
         ).execute()
 
-    # =========================================================================
-    # Helpers
-    # =========================================================================
 
     @staticmethod
     def extract_headers(message: dict[str, Any]) -> dict[str, str]:
@@ -382,12 +361,10 @@ class GmailService(BaseService):
         """
         payload = message.get("payload", {})
         
-        # Simple case: body in payload
         body_data = payload.get("body", {}).get("data")
         if body_data:
             return base64.urlsafe_b64decode(body_data).decode("utf-8", errors="replace")
         
-        # Multipart: find text/plain
         for part in payload.get("parts", []):
             if part.get("mimeType") == "text/plain":
                 data = part.get("body", {}).get("data")

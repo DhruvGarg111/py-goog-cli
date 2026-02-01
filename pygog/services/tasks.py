@@ -22,9 +22,6 @@ class TasksService(BaseService):
         """Get tasks API."""
         return self._get_service().tasks()
 
-    # =========================================================================
-    # Task Lists
-    # =========================================================================
 
     def list_tasklists(self, max_results: int = 100) -> list[dict[str, Any]]:
         """List all task lists.
@@ -80,9 +77,6 @@ class TasksService(BaseService):
         """
         self._tasklists().delete(tasklist=tasklist_id).execute()
 
-    # =========================================================================
-    # Tasks
-    # =========================================================================
 
     def list_tasks(
         self,
@@ -147,10 +141,8 @@ class TasksService(BaseService):
         
         if due:
             if isinstance(due, datetime):
-                # Google Tasks expects date-only in RFC 3339 format
                 due = due.strftime("%Y-%m-%dT00:00:00.000Z")
             elif not due.endswith("Z") and "T" not in due:
-                # Convert date string to RFC 3339
                 due = f"{due}T00:00:00.000Z"
             task["due"] = due
 
@@ -178,7 +170,6 @@ class TasksService(BaseService):
         Returns:
             Updated task dict
         """
-        # Get existing task
         task = self.get_task(tasklist_id, task_id)
 
         if title is not None:
@@ -241,9 +232,6 @@ class TasksService(BaseService):
         """
         self._tasks().clear(tasklist=tasklist_id).execute()
 
-    # =========================================================================
-    # Helpers
-    # =========================================================================
 
     @staticmethod
     def format_due(due: str | None) -> str:

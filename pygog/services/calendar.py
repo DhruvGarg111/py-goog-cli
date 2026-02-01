@@ -27,9 +27,6 @@ class CalendarService(BaseService):
         """Get calendarList API."""
         return self._get_service().calendarList()
 
-    # =========================================================================
-    # Calendar List
-    # =========================================================================
 
     def list_calendars(self) -> list[dict[str, Any]]:
         """List all calendars.
@@ -51,9 +48,6 @@ class CalendarService(BaseService):
         """
         return self._calendars().get(calendarId=calendar_id).execute()
 
-    # =========================================================================
-    # Events
-    # =========================================================================
 
     def list_events(
         self,
@@ -156,9 +150,7 @@ class CalendarService(BaseService):
         """
         event = {"summary": summary}
 
-        # Handle start/end times
         if all_day:
-            # All-day event uses date, not dateTime
             if isinstance(start, datetime):
                 start = start.strftime("%Y-%m-%d")
             if isinstance(end, datetime):
@@ -224,10 +216,8 @@ class CalendarService(BaseService):
         Returns:
             Updated event dict
         """
-        # Get existing event
         event = self.get_event(calendar_id, event_id)
 
-        # Update fields
         if summary is not None:
             event["summary"] = summary
         if description is not None:
@@ -275,9 +265,6 @@ class CalendarService(BaseService):
             sendUpdates=send_updates,
         ).execute()
 
-    # =========================================================================
-    # RSVP
-    # =========================================================================
 
     def respond_to_event(
         self,
@@ -299,7 +286,6 @@ class CalendarService(BaseService):
         """
         event = self.get_event(calendar_id, event_id)
         
-        # Find self in attendees and update status
         attendees = event.get("attendees", [])
         for attendee in attendees:
             if attendee.get("self"):
@@ -313,9 +299,6 @@ class CalendarService(BaseService):
             sendUpdates=send_updates,
         ).execute()
 
-    # =========================================================================
-    # Free/Busy
-    # =========================================================================
 
     def get_freebusy(
         self,
@@ -346,9 +329,6 @@ class CalendarService(BaseService):
 
         return self._get_service().freebusy().query(body=body).execute()
 
-    # =========================================================================
-    # Helpers
-    # =========================================================================
 
     @staticmethod
     def get_today_range(timezone: str | None = None):
@@ -387,7 +367,6 @@ class CalendarService(BaseService):
         else:
             now = datetime.now()
         
-        # Calculate days since week start
         days_since_start = (now.weekday() - week_start) % 7
         start = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_start)
         end = start + timedelta(days=7)

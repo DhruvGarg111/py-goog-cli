@@ -43,7 +43,6 @@ def credentials_cmd(
 ):
     """Store or list OAuth client credentials."""
     if list_creds or path is None:
-        # List stored credentials
         clients = CredentialsManager.list_clients()
         if not clients:
             console.print("[yellow]No credentials stored.[/yellow]")
@@ -61,7 +60,6 @@ def credentials_cmd(
         console.print(table)
         return
 
-    # Store credentials
     client_name = client or "default"
     manager = CredentialsManager(client_name)
 
@@ -108,7 +106,6 @@ def add_cmd(
     client_name = client or state.client
     auth_client = GoogleAuthClient(client_name)
 
-    # Parse services
     service_list = None
     if services:
         service_list = [s.strip() for s in services.split(",")]
@@ -263,7 +260,6 @@ def services_cmd():
     console.print(table)
 
 
-# Alias subcommands
 alias_app = typer.Typer(no_args_is_help=True, help="Manage account aliases")
 app.add_typer(alias_app, name="alias")
 
@@ -328,7 +324,6 @@ def keyring_cmd(
     config = get_config()
 
     if backend is None:
-        # Show current backend
         current = config.keyring_backend
         console.print(f"Keyring backend: [cyan]{current}[/cyan]")
         console.print(f"Config path: {config.path}")

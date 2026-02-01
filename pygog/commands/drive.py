@@ -33,9 +33,6 @@ def should_plain() -> bool:
     return state.plain_output
 
 
-# =============================================================================
-# List / Search
-# =============================================================================
 
 @app.command("ls")
 def ls_cmd(
@@ -141,9 +138,6 @@ def get_cmd(
         console.print(f"[bold]Link:[/bold] {file['webViewLink']}")
 
 
-# =============================================================================
-# Download / Upload
-# =============================================================================
 
 @app.command("download")
 def download_cmd(
@@ -154,17 +148,14 @@ def download_cmd(
     """Download or export a file."""
     service = get_service()
 
-    # Get file info for default name
     file_info = service.get_file(file_id)
     default_name = file_info.get("name", file_id)
 
     if format:
-        # Export Google Workspace file
         output_path = out or Path(f"{default_name}.{format}")
         service.export_file(file_id, format, output_path)
         console.print(f"[green][OK][/green] Exported to: {output_path}")
     else:
-        # Direct download
         output_path = out or Path(default_name)
         service.download_file(file_id, output_path)
         console.print(f"[green][OK][/green] Downloaded to: {output_path}")
@@ -195,9 +186,6 @@ def upload_cmd(
         console.print(f"  Link: {result['webViewLink']}")
 
 
-# =============================================================================
-# Create / Copy / Rename / Move / Delete
-# =============================================================================
 
 @app.command("mkdir")
 def mkdir_cmd(
@@ -289,9 +277,6 @@ def delete_cmd(
     console.print(f"[green][OK][/green] Moved to trash: {file_id}")
 
 
-# =============================================================================
-# Permissions
-# =============================================================================
 
 @app.command("permissions")
 def permissions_cmd(
@@ -354,9 +339,6 @@ def unshare_cmd(
     console.print(f"[green][OK][/green] Permission removed: {permission_id}")
 
 
-# =============================================================================
-# Shared Drives
-# =============================================================================
 
 @app.command("drives")
 def drives_cmd(
@@ -384,9 +366,6 @@ def drives_cmd(
     console.print(table)
 
 
-# =============================================================================
-# URL
-# =============================================================================
 
 @app.command("url")
 def url_cmd(

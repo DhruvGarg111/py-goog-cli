@@ -29,11 +29,9 @@ def print_table(
         console.print("[dim]No data to display[/dim]")
         return
 
-    # Determine columns
     if columns is None:
         columns = list(data[0].keys())
 
-    # Create table
     table = Table(title=title, show_header=True, header_style="bold cyan")
     
     for col in columns:

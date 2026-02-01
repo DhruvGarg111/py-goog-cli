@@ -31,16 +31,13 @@ def now_cmd(
     now = datetime.now()
 
     if tz_name == "local":
-        # Local time
         local_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
         console.print(f"Local: {local_str}")
     elif tz_name.upper() == "UTC":
-        # UTC time
         utc_now = datetime.utcnow()
         utc_str = utc_now.strftime("%Y-%m-%d %H:%M:%S UTC")
         console.print(f"UTC: {utc_str}")
     else:
-        # Specific timezone
         try:
             tz = zoneinfo.ZoneInfo(tz_name)
             tz_now = datetime.now(tz)
@@ -50,7 +47,6 @@ def now_cmd(
             console.print(f"[red]Unknown timezone:[/red] {tz_name}")
             raise typer.Exit(1)
 
-    # Also show UTC for reference if not already showing it
     if tz_name != "UTC":
         utc_now = datetime.utcnow()
         console.print(f"UTC: {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")

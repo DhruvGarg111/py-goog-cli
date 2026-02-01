@@ -11,7 +11,6 @@ from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from pygog.services.base import BaseService
 
 
-# MIME type mappings for Google Workspace files
 EXPORT_FORMATS = {
     "application/vnd.google-apps.document": {
         "pdf": "application/pdf",
@@ -52,9 +51,6 @@ class DriveService(BaseService):
         """Get permissions API."""
         return self._get_service().permissions()
 
-    # =========================================================================
-    # List / Search
-    # =========================================================================
 
     def list_files(
         self,
@@ -104,7 +100,6 @@ class DriveService(BaseService):
         Returns:
             Dict with 'files' list and optional 'nextPageToken'
         """
-        # Build query - search in name and full text
         q = f"(name contains '{query}' or fullText contains '{query}') and trashed = false"
 
         return self._files().list(
@@ -128,9 +123,6 @@ class DriveService(BaseService):
             fields="id, name, mimeType, size, modifiedTime, createdTime, parents, webViewLink",
         ).execute()
 
-    # =========================================================================
-    # Download / Export
-    # =========================================================================
 
     def download_file(self, file_id: str, output_path: Path | str) -> None:
         """Download a file.
@@ -160,17 +152,14 @@ class DriveService(BaseService):
             format: Export format (pdf, docx, xlsx, pptx, csv, txt)
             output_path: Path to save file
         """
-        # Get file to determine type
         file_meta = self.get_file(file_id)
         mime_type = file_meta.get("mimeType", "")
 
-        # Get export MIME type
         format_lower = format.lower()
         export_mimes = EXPORT_FORMATS.get(mime_type, {})
         export_mime = export_mimes.get(format_lower)
 
         if not export_mime:
-            # Try common formats
             common_mimes = {
                 "pdf": "application/pdf",
                 "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -192,9 +181,6 @@ class DriveService(BaseService):
             while not done:
                 _, done = downloader.next_chunk()
 
-    # =========================================================================
-    # Upload
-    # =========================================================================
 
     def upload_file(
         self,
@@ -217,7 +203,6 @@ class DriveService(BaseService):
         file_path = Path(file_path)
         file_name = name or file_path.name
 
-        # Detect MIME type
         if not mime_type:
             mime_type, _ = mimetypes.guess_type(str(file_path))
             mime_type = mime_type or "application/octet-stream"
@@ -234,9 +219,6 @@ class DriveService(BaseService):
             fields="id, name, mimeType, size, webViewLink",
         ).execute()
 
-    # =========================================================================
-    # Create / Copy / Rename / Move / Delete
-    # =========================================================================
 
     def create_folder(
         self,
@@ -316,7 +298,6 @@ class DriveService(BaseService):
         Returns:
             Updated file metadata
         """
-        # Get current parents
         file = self._files().get(fileId=file_id, fields="parents").execute()
         previous_parents = ",".join(file.get("parents", []))
 
@@ -338,9 +319,6 @@ class DriveService(BaseService):
             body={"trashed": True},
         ).execute()
 
-    # =========================================================================
-    # Permissions
-    # =========================================================================
 
     def list_permissions(self, file_id: str) -> list[dict[str, Any]]:
         """List file permissions.
@@ -400,9 +378,6 @@ class DriveService(BaseService):
             permissionId=permission_id,
         ).execute()
 
-    # =========================================================================
-    # Shared Drives
-    # =========================================================================
 
     def list_drives(self, max_results: int = 100) -> list[dict[str, Any]]:
         """List shared drives.
@@ -419,9 +394,6 @@ class DriveService(BaseService):
         ).execute()
         return result.get("drives", [])
 
-    # =========================================================================
-    # Helpers
-    # =========================================================================
 
     @staticmethod
     def get_drive_url(file_id: str) -> str:

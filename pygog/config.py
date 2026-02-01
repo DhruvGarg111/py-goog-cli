@@ -32,7 +32,6 @@ def get_config_dir() -> Path:
         if Path("/Library").exists(): # macOS
             return Path.home() / "Library" / "Application Support" / "pygog"
         
-        # Linux
         xdg_config = os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
         return Path(xdg_config) / "pygog"
     
