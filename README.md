@@ -172,3 +172,8 @@ pygog config set default_account your.email@gmail.com
 `pygog` uses your system's secure keyring (macOS Keychain, Windows Credential Manager, or Secret Service) to store OAuth2 refresh tokens. Tokens are never stored in plain text.
 
 ---
+
+
+### Note: This project is made with assistance from Claude Opus 4.5.
+
+I wanted to check its capabilities and see if it could help me with my project. I was pleasantly surprised by its capabilities and it was able to help me with my project.
