@@ -13,7 +13,6 @@ from pygog.config import get_config
 from pygog.auth.credentials import CredentialsManager
 from pygog.auth.keyring import KeyringStorage, ServiceAccountStorage
 
-# OAuth scopes for different services
 SCOPES = {
     "gmail": [
         "https://www.googleapis.com/auth/gmail.modify",
@@ -59,10 +58,8 @@ SCOPES = {
     ],
 }
 
-# Default services for user auth
 DEFAULT_SERVICES = ["gmail", "calendar", "drive", "tasks", "contacts", "people"]
 
-# Read-only scope replacements
 READONLY_SCOPES = {
     "https://www.googleapis.com/auth/gmail.modify": "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/calendar": "https://www.googleapis.com/auth/calendar.readonly",
@@ -93,13 +90,11 @@ def get_scopes_for_services(
     for service in services:
         service = service.lower()
         if service == "user" or service == "all":
-            # All default user services
             for svc in DEFAULT_SERVICES:
                 scopes.update(SCOPES.get(svc, []))
         elif service in SCOPES:
             scopes.update(SCOPES[service])
 
-    # Apply read-only replacements
     if readonly:
         scopes = {READONLY_SCOPES.get(s, s) for s in scopes}
 
@@ -146,7 +141,6 @@ class GoogleAuthClient:
             scopes=scopes,
         )
 
-        # Run the OAuth flow
         try:
             credentials = flow.run_local_server(
                 port=0,
@@ -158,7 +152,6 @@ class GoogleAuthClient:
         except Exception as e:
             raise RuntimeError(f"Authorization failed: {e}") from e
 
-        # Store the token
         token_data = {
             "token": credentials.token,
             "refresh_token": credentials.refresh_token,
@@ -181,7 +174,6 @@ class GoogleAuthClient:
         Returns:
             Credentials object or None if not found
         """
-        # Check for service account first
         sa_key = self._service_accounts.get_key(account)
         if sa_key:
             from google.oauth2 import service_account
@@ -190,7 +182,6 @@ class GoogleAuthClient:
                 subject=account,
             )
 
-        # Get OAuth token
         token_data = self._keyring.get_token(account)
         if not token_data:
             return None
@@ -204,15 +195,12 @@ class GoogleAuthClient:
             scopes=token_data.get("scopes"),
         )
 
-        # Refresh if expired
         if credentials.expired and credentials.refresh_token:
             try:
                 credentials.refresh(Request())
-                # Update stored token
                 token_data["token"] = credentials.token
                 self._keyring.store_token(account, token_data)
             except Exception:
-                # Token might be revoked
                 pass
 
         return credentials

@@ -43,19 +43,16 @@ class CredentialsManager:
         with open(source, encoding="utf-8") as f:
             data = json.load(f)
 
-        # Validate it looks like OAuth credentials
         if "installed" not in data and "web" not in data:
             raise ValueError(
                 "Invalid credentials file. Expected OAuth 2.0 client credentials "
                 "(should contain 'installed' or 'web' key)"
             )
 
-        # Store to config directory
         ensure_config_dir()
         with open(self._path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
-        # Store domain mapping if provided
         if domain:
             config = get_config()
             client_domains = config.get("client_domains", {})
@@ -102,7 +99,6 @@ class CredentialsManager:
                 f"Run: pygog auth credentials <path-to-credentials.json>"
             )
 
-        # Handle both 'installed' and 'web' credential types
         if "installed" in data:
             return data["installed"]
         elif "web" in data:
@@ -120,7 +116,6 @@ class CredentialsManager:
         config_dir = ensure_config_dir()
         clients = []
 
-        # Check for default credentials
         default_path = config_dir / "credentials.json"
         if default_path.exists():
             clients.append({
@@ -128,7 +123,6 @@ class CredentialsManager:
                 "path": str(default_path),
             })
 
-        # Check for named credentials
         for path in config_dir.glob("credentials-*.json"):
             name = path.stem.replace("credentials-", "")
             clients.append({

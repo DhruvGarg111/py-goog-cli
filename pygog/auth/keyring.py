@@ -10,7 +10,6 @@ from keyring.errors import KeyringError
 
 from pygog.config import get_config, ensure_config_dir
 
-# Service name for keyring
 KEYRING_SERVICE = "pygog"
 
 
@@ -125,7 +124,6 @@ class ServiceAccountStorage:
     def store_key(self, account: str, key_data: dict[str, Any]) -> None:
         """Store service account key for an account."""
         config_key = self._make_key(account)
-        # Store in config (could also use keyring for more security)
         self._config.set(config_key, key_data)
 
     def get_key(self, account: str) -> dict[str, Any] | None:

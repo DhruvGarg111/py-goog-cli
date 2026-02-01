@@ -6,10 +6,8 @@ import inspect
 import json
 from typing import Any, Callable, get_type_hints
 
-# Global registry of tools
 TOOLS_REGISTRY: dict[str, dict[str, Any]] = {}
 
-# Keywords that indicate a destructive/write operation
 DESTRUCTIVE_KEYWORDS = ["send", "delete", "upload", "update", "create", "remove", "move", "share", "trash"]
 
 
@@ -24,7 +22,6 @@ def get_type_schema(python_type: type) -> dict[str, Any]:
         dict: {"type": "object"},
     }
     
-    # Handle Optional types
     origin = getattr(python_type, "__origin__", None)
     if origin is list:
         args = getattr(python_type, "__args__", (str,))
@@ -39,7 +36,6 @@ def generate_schema_from_function(func: Callable) -> dict[str, Any]:
     hints = get_type_hints(func)
     docstring = inspect.getdoc(func) or ""
     
-    # Parse docstring for parameter descriptions
     param_docs = {}
     if "Args:" in docstring:
         args_section = docstring.split("Args:")[1]
@@ -51,17 +47,16 @@ def generate_schema_from_function(func: Callable) -> dict[str, Any]:
                 param_name, param_desc = line.split(":", 1)
                 param_docs[param_name.strip()] = param_desc.strip()
     
-    # Build parameters schema
+
     properties = {}
     required = []
     
     for param_name, param in sig.parameters.items():
         if param_name in ("self", "account", "client"):
-            continue  # Skip internal params
+            continue
             
         param_type = hints.get(param_name, str)
         
-        # Handle Optional
         origin = getattr(param_type, "__origin__", None)
         is_optional = False
         if origin is type(None) or str(param_type).startswith("typing.Optional"):
@@ -76,7 +71,6 @@ def generate_schema_from_function(func: Callable) -> dict[str, Any]:
         if param.default is inspect.Parameter.empty and not is_optional:
             required.append(param_name)
     
-    # Get function description from first line of docstring
     description = docstring.split("\n")[0] if docstring else func.__name__
     
     return {
@@ -100,15 +94,12 @@ def register_tool(*, destructive: bool | None = None):
     def decorator(func: Callable) -> Callable:
         func_name = func.__name__
         
-        # Auto-detect if destructive based on name
         is_destructive = destructive
         if is_destructive is None:
             is_destructive = any(kw in func_name.lower() for kw in DESTRUCTIVE_KEYWORDS)
         
-        # Generate schema
         schema = generate_schema_from_function(func)
         
-        # Register
         TOOLS_REGISTRY[func_name] = {
             "function": func,
             "schema": schema,
