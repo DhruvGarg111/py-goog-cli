@@ -15,6 +15,9 @@
 **A fast, powerful, and script-friendly CLI for Google services.**  
 *Built with Python for performance and reliability.*
 
+Based on [steipete/gogcli](https://github.com/steipete/gogcli) — the original project was built in Go.  
+This project is a Python reimplementation with added LLM support more advanced AI support.
+
 [Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Commands](#-command-reference) • [Agent](#-natural-language-agent)
 
 </div>
@@ -304,6 +307,14 @@ Contributions are welcome! Feel free to:
 1. Fork the repository
 2. Create a feature branch
 3. Submit a pull request
+
+---
+
+## 🙏 Acknowledgments
+
+- Inspired by and based on [steipete/gogcli](https://github.com/steipete/gogcli)
+- Original implementation was written in Go
+- This version is implemented in Python and adds LLM support
 
 ---
 
