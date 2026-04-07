@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import inspect
-import json
 from typing import Any, Callable, get_type_hints
 
 TOOLS_REGISTRY: dict[str, dict[str, Any]] = {}

@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import webbrowser
 from typing import Any
 
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-from pygog.config import get_config
 from pygog.auth.credentials import CredentialsManager
 from pygog.auth.keyring import KeyringStorage, ServiceAccountStorage
 
