@@ -8,7 +8,7 @@ from typing import Any
 import keyring
 from keyring.errors import KeyringError
 
-from pygog.config import get_config, ensure_config_dir
+from pygog.config import get_config
 
 KEYRING_SERVICE = "pygog"
 

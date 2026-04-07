@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, BinaryIO
+from typing import Any
 import mimetypes
 
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload

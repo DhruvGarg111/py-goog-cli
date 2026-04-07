@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import base64
-import email
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Any
