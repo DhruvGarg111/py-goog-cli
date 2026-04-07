@@ -74,7 +74,7 @@ class DriveService(BaseService):
         """
         query_parts = ["trashed = false"]
         if parent_id:
-            safe_parent_id = parent_id.replace("'", "\\'")
+            safe_parent_id = parent_id.replace("\\", "\\\\").replace("'", "\\'")
             query_parts.append(f"'{safe_parent_id}' in parents")
 
         return self._files().list(
@@ -101,7 +101,7 @@ class DriveService(BaseService):
         Returns:
             Dict with 'files' list and optional 'nextPageToken'
         """
-        safe_query = query.replace("'", "\\'")
+        safe_query = query.replace("\\", "\\\\").replace("'", "\\'")
         q = f"(name contains '{safe_query}' or fullText contains '{safe_query}') and trashed = false"
 
         return self._files().list(

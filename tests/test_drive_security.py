@@ -84,5 +84,63 @@ class TestDriveSecurity(unittest.TestCase):
         self.assertIn(f"'{expected_parent}'", q)
         self.assertNotIn(f"'{malicious_parent}'", q)
 
+    @patch("pygog.services.base.get_config")
+    def test_backslash_escaping(self, mock_get_config):
+        # Mock config
+        mock_config = MagicMock()
+        mock_config.resolve_account.return_value = "test@example.com"
+        mock_config.get_client_for_account.return_value = "test-client"
+        mock_get_config.return_value = mock_config
+
+        # Mock Drive API service
+        service = DriveService(account="test@example.com")
+        mock_drive_service = MagicMock()
+        service._service = mock_drive_service
+
+        mock_files = mock_drive_service.files.return_value
+
+        # Input: foo\
+        query = "foo\\"
+        service.search_files(query=query)
+
+        args, kwargs = mock_files.list.call_args
+        q = kwargs.get('q')
+
+        print(f"Generated query with backslash: {q}")
+
+        # foo\ -> foo\\
+        # In Python string literal for expectation: "foo\\\\"
+        expected_query = "foo\\\\"
+        self.assertIn(f"'{expected_query}'", q)
+
+    @patch("pygog.services.base.get_config")
+    def test_backslash_quote_escaping(self, mock_get_config):
+        # Mock config
+        mock_config = MagicMock()
+        mock_config.resolve_account.return_value = "test@example.com"
+        mock_config.get_client_for_account.return_value = "test-client"
+        mock_get_config.return_value = mock_config
+
+        # Mock Drive API service
+        service = DriveService(account="test@example.com")
+        mock_drive_service = MagicMock()
+        service._service = mock_drive_service
+
+        mock_files = mock_drive_service.files.return_value
+
+        # Input: foo\'
+        query = "foo\\'"
+        service.search_files(query=query)
+
+        args, kwargs = mock_files.list.call_args
+        q = kwargs.get('q')
+
+        print(f"Generated query with backslash and quote: {q}")
+
+        # foo\' -> foo\\\'
+        # In Python string literal for expectation: "foo\\\\\\'"
+        expected_query = "foo\\\\\\'"
+        self.assertIn(f"'{expected_query}'", q)
+
 if __name__ == "__main__":
     unittest.main()
