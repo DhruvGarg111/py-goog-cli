@@ -62,7 +62,17 @@ with mock.patch.dict(sys.modules, {
             with mock.patch('sys.stdout', new=StringIO()) as fake_out:
                 data = [{"val": 123, "active": True, "none": None}]
                 print_plain(data, header=False)
+                # Currently it prints "None" for None. We might want to change this to ""
                 expected = "123\tTrue\tNone\n"
+                self.assertEqual(fake_out.getvalue(), expected)
+
+        def test_print_plain_generator_columns(self):
+            with mock.patch('sys.stdout', new=StringIO()) as fake_out:
+                data = [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]
+                cols = (c for c in ["name", "age"])
+                # This should work even if columns is a generator
+                print_plain(data, columns=cols)
+                expected = "name\tage\nAlice\t30\nBob\t25\n"
                 self.assertEqual(fake_out.getvalue(), expected)
 
     if __name__ == '__main__':
