@@ -23,6 +23,8 @@ def print_plain(
 
     if columns is None:
         columns = list(data[0].keys())
+    else:
+        columns = list(columns)
 
     if header:
         print("\t".join(columns), file=sys.stdout)
