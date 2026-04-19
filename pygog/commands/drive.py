@@ -226,13 +226,39 @@ def copy_cmd(
 def rename_cmd(
     file_id: str = typer.Argument(..., help="File ID"),
     name: str = typer.Argument(..., help="New name"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview the action without executing"),
 ):
     """Rename a file."""
     service = get_service()
+
+    if dry_run:
+        original = service.get_file(file_id)
+        original_name = original.get("name", file_id)
+        if should_json():
+            print_json({
+                "dryRun": True,
+                "message": "DRY RUN, NO FILES AFFECTED",
+                "status": "success",
+                "action": "renamed",
+                "fileId": file_id,
+            })
+            return
+
+        if should_plain():
+            print(f"[DRY RUN, NO FILES AFFECTED] Renamed '{original_name}' to '{name}'")
+            return
+
+        console.print(f"[DRY RUN, NO FILES AFFECTED] [green][OK][/green] Renamed '{original_name}' to '{name}'")
+        return
+
     result = service.rename_file(file_id, name)
 
     if should_json():
         print_json({"file": result})
+        return
+
+    if should_plain():
+        print(f"Renamed to: {name}")
         return
 
     console.print(f"[green][OK][/green] Renamed to: [cyan]{name}[/cyan]")
@@ -242,13 +268,39 @@ def rename_cmd(
 def move_cmd(
     file_id: str = typer.Argument(..., help="File ID"),
     parent: str = typer.Option(..., "--parent", "-p", help="Destination folder ID"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview the action without executing"),
 ):
     """Move a file to a different folder."""
     service = get_service()
+
+    if dry_run:
+        original = service.get_file(file_id)
+        original_name = original.get("name", file_id)
+        if should_json():
+            print_json({
+                "dryRun": True,
+                "message": "DRY RUN, NO FILES AFFECTED",
+                "status": "success",
+                "action": "moved",
+                "fileId": file_id,
+            })
+            return
+
+        if should_plain():
+            print(f"[DRY RUN, NO FILES AFFECTED] Moved '{original_name}' (ID: {file_id}) to folder {parent}")
+            return
+
+        console.print(f"[DRY RUN, NO FILES AFFECTED] [green][OK][/green] Moved '{original_name}' (ID: {file_id}) to folder {parent}")
+        return
+
     result = service.move_file(file_id, parent)
 
     if should_json():
         print_json({"file": result})
+        return
+
+    if should_plain():
+        print(f"Moved: {result.get('name', file_id)}")
         return
 
     console.print(f"[green][OK][/green] Moved: {result.get('name', file_id)}")
@@ -258,9 +310,28 @@ def move_cmd(
 def delete_cmd(
     file_id: str = typer.Argument(..., help="File ID"),
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview the action without executing"),
 ):
     """Move a file to trash."""
     from pygog.cli import state
+
+    if dry_run:
+        if should_json():
+            print_json({
+                "dryRun": True,
+                "message": "DRY RUN, NO FILES AFFECTED",
+                "status": "success",
+                "action": "deleted",
+                "fileId": file_id,
+            })
+            return
+
+        if should_plain():
+            print(f"[DRY RUN, NO FILES AFFECTED] Moved to trash: {file_id}")
+            return
+
+        console.print(f"[DRY RUN, NO FILES AFFECTED] [green][OK][/green] Moved to trash: {file_id}")
+        return
 
     if not force and not state.force:
         confirm = typer.confirm(f"Move file {file_id} to trash?")
@@ -272,6 +343,10 @@ def delete_cmd(
 
     if should_json():
         print_json({"deleted": True, "fileId": file_id})
+        return
+
+    if should_plain():
+        print(f"Moved to trash: {file_id}")
         return
 
     console.print(f"[green][OK][/green] Moved to trash: {file_id}")
