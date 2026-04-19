@@ -261,9 +261,13 @@ def test_config_get_client_for_account(mock_config):
 
 
 def test_get_config_singleton():
-    config1 = get_config()
-    config2 = get_config()
-    assert config1 is config2
+    try:
+        config1 = get_config()
+        config2 = get_config()
+        assert config1 is config2
+    finally:
+        import pygog.config
+        pygog.config._config = None
 
 
 def test_config_path_property(mock_config):
