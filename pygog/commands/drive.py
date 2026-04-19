@@ -229,11 +229,7 @@ def rename_cmd(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview the action without executing"),
 ):
     """Rename a file."""
-    service = get_service()
-
     if dry_run:
-        original = service.get_file(file_id)
-        original_name = original.get("name", file_id)
         if should_json():
             print_json({
                 "dryRun": True,
@@ -241,16 +237,18 @@ def rename_cmd(
                 "status": "success",
                 "action": "renamed",
                 "fileId": file_id,
+                "newName": name,
             })
             return
 
         if should_plain():
-            print(f"[DRY RUN, NO FILES AFFECTED] Renamed '{original_name}' to '{name}'")
+            print(f"[DRY RUN, NO FILES AFFECTED] Renamed file '{file_id}' to '{name}'")
             return
 
-        console.print(f"[DRY RUN, NO FILES AFFECTED] [green][OK][/green] Renamed '{original_name}' to '{name}'")
+        console.print(f"[DRY RUN, NO FILES AFFECTED] [green][OK][/green] Renamed file '{file_id}' to '{name}'")
         return
 
+    service = get_service()
     result = service.rename_file(file_id, name)
 
     if should_json():
@@ -271,11 +269,7 @@ def move_cmd(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview the action without executing"),
 ):
     """Move a file to a different folder."""
-    service = get_service()
-
     if dry_run:
-        original = service.get_file(file_id)
-        original_name = original.get("name", file_id)
         if should_json():
             print_json({
                 "dryRun": True,
@@ -283,16 +277,18 @@ def move_cmd(
                 "status": "success",
                 "action": "moved",
                 "fileId": file_id,
+                "parent": parent,
             })
             return
 
         if should_plain():
-            print(f"[DRY RUN, NO FILES AFFECTED] Moved '{original_name}' (ID: {file_id}) to folder {parent}")
+            print(f"[DRY RUN, NO FILES AFFECTED] Moved file '{file_id}' to folder {parent}")
             return
 
-        console.print(f"[DRY RUN, NO FILES AFFECTED] [green][OK][/green] Moved '{original_name}' (ID: {file_id}) to folder {parent}")
+        console.print(f"[DRY RUN, NO FILES AFFECTED] [green][OK][/green] Moved file '{file_id}' to folder {parent}")
         return
 
+    service = get_service()
     result = service.move_file(file_id, parent)
 
     if should_json():
