@@ -25,15 +25,19 @@ ENV_ENABLE_COMMANDS = "GOG_ENABLE_COMMANDS"
 def get_config_dir() -> Path:
     """Get OS-appropriate config directory."""
     if os.name == "nt":  # Windows
-        base = os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))
-        return Path(base) / "pygog"
+        base = os.environ.get("APPDATA")
+        if base:
+            return Path(base) / "pygog"
+        return Path.home() / "AppData" / "Roaming" / "pygog"
     
     if os.name == "posix":
         if Path("/Library").exists(): # macOS
             return Path.home() / "Library" / "Application Support" / "pygog"
         
-        xdg_config = os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
-        return Path(xdg_config) / "pygog"
+        xdg_config = os.environ.get("XDG_CONFIG_HOME")
+        if xdg_config:
+            return Path(xdg_config) / "pygog"
+        return Path.home() / ".config" / "pygog"
     
     return Path.home() / ".pygog"
 
