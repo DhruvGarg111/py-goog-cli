@@ -218,6 +218,16 @@ available. Calendar `start` is `YYYY-MM-DD` for all-day events and
 
 ## Mutation and dry-run responses
 
+Machine-readable mutations have an intentional safety break from historical
+interactive behavior: commands running with `--json` or `--plain` never prompt
+for confirmation, because a prompt would corrupt the stdout contract. A script
+must explicitly authorize the mutation with either the global `--force` option
+(for example, `pygog --json --force gmail send ...`) or that mutation command's
+local `--force` option. Alternatively, pass the command's `--dry-run` option to
+preview the operation without calling the provider. Without `--force` or
+`--dry-run`, the command exits nonzero with a `confirmation_required` error;
+`--no-input` does not bypass this requirement.
+
 Mutations keep their established wrapper or result keys rather than returning a
 new generic envelope. Representative JSON shapes are:
 

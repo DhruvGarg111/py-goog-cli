@@ -18,6 +18,9 @@ This release contains the upgrade work described below.
   capability, local confirmation, tool allowlists, and untrusted-result
   boundaries.
 - Added typed CLI context/errors and stable JSON/TSV scripting documentation.
+- Applied the global color mode to command output and documented that
+  machine-readable mutations require explicit global/local `--force` or
+  `--dry-run` authorization and cannot prompt.
 - Added atomic configuration writes, secret redaction, keyring-only
   service-account storage, pagination/retry helpers, and safer Drive transfers.
 
