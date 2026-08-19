@@ -83,22 +83,30 @@ def test_tasks_all_list_is_bounded_on_repeated_token():
     assert len(resource.calls) == 2
 
 
-def test_drive_read_requests_include_shared_drive_parameters(monkeypatch):
+def test_drive_get_request_includes_shared_drive_parameter():
     service = DriveService.__new__(DriveService)
     calls = []
     files = type("Files", (), {})()
-    files.get = lambda **kwargs: (
-        calls.append(("get", kwargs)) or Request({"mimeType": "application/pdf"})
-    )
-    files.export_media = lambda **kwargs: calls.append(("export", kwargs)) or Request({})
+    files.get = lambda **kwargs: calls.append(kwargs) or Request({})
     service._files = lambda: files
-    monkeypatch.setattr(DriveService, "_transfer", staticmethod(lambda *args, **kwargs: None))
 
     service.get_file("file")
-    service.export_file("file", "pdf", "/tmp/out.pdf")
 
-    assert calls[0][1]["supportsAllDrives"] is True
-    assert calls[1][1]["supportsAllDrives"] is True
+    assert calls[0]["supportsAllDrives"] is True
+
+
+def test_drive_export_request_uses_only_supported_parameters(monkeypatch, tmp_path):
+    service = DriveService.__new__(DriveService)
+    calls = []
+    files = type("Files", (), {})()
+    files.export_media = lambda **kwargs: calls.append(kwargs) or Request({})
+    service._files = lambda: files
+    service.get_file = lambda file_id: {"mimeType": "application/pdf"}
+    monkeypatch.setattr(DriveService, "_transfer", staticmethod(lambda *args, **kwargs: None))
+
+    service.export_file("file", "pdf", tmp_path / "out.pdf")
+
+    assert calls == [{"fileId": "file", "mimeType": "application/pdf"}]
 
 
 def test_transfer_failure_removes_reserved_destination(tmp_path):
@@ -122,6 +130,29 @@ def test_transfer_failure_removes_reserved_destination(tmp_path):
         drive.MediaIoBaseDownload = original
 
     assert not destination.exists()
+
+
+def test_successful_empty_transfer_keeps_destination(tmp_path):
+    destination = tmp_path / "empty.bin"
+
+    class Downloader:
+        def __init__(self, handle, request):
+            pass
+
+        def next_chunk(self):
+            return None, True
+
+    import pygog.services.drive as drive
+
+    original = drive.MediaIoBaseDownload
+    drive.MediaIoBaseDownload = Downloader
+    try:
+        DriveService._transfer(object(), destination, overwrite=False)
+    finally:
+        drive.MediaIoBaseDownload = original
+
+    assert destination.exists()
+    assert destination.read_bytes() == b""
 
 
 def test_export_validates_destination_before_metadata_lookup(tmp_path):

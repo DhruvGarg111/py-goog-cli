@@ -203,6 +203,7 @@ class DriveService(BaseService):
                 raise FileExistsError(f"Output already exists: {destination}")
         fd, temp_name = tempfile.mkstemp(prefix=f".{destination.name}.", dir=destination.parent)
         temp_path = Path(temp_name)
+        completed = False
         try:
             with os.fdopen(fd, "wb") as handle:
                 downloader = MediaIoBaseDownload(handle, request)
@@ -212,12 +213,13 @@ class DriveService(BaseService):
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temp_path, destination)
+            completed = True
         finally:
             try:
                 temp_path.unlink()
             except FileNotFoundError:
                 pass
-            if reserved and destination.exists() and destination.stat().st_size == 0:
+            if reserved and not completed:
                 try:
                     destination.unlink()
                 except FileNotFoundError:
@@ -260,9 +262,7 @@ class DriveService(BaseService):
         if not export_mime:
             raise ValueError(f"Unknown export format: {format}")
 
-        request = self._files().export_media(
-            fileId=file_id, mimeType=export_mime, supportsAllDrives=True
-        )
+        request = self._files().export_media(fileId=file_id, mimeType=export_mime)
         self._transfer(request, destination, overwrite=overwrite)
 
     def upload_file(
