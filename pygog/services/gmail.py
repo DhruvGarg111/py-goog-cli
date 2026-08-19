@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import base64
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Any
+from email.mime.text import MIMEText
+from typing import Any, cast
 
-from pygog.services.base import BaseService
+from pygog.services.base import BaseService, iter_pages
 
 
 class GmailService(BaseService):
@@ -20,63 +20,72 @@ class GmailService(BaseService):
         """Get users API."""
         return self._get_service().users()
 
-
     def list_labels(self) -> list[dict[str, Any]]:
         """List all labels.
-        
+
         Returns:
             List of label dicts
         """
-        result = self._users().labels().list(userId="me").execute()
-        return result.get("labels", [])
+        result = self._execute(self._users().labels().list(userId="me"))
+        return cast(list[dict[str, Any]], result.get("labels", []))
 
     def get_label(self, label_id: str) -> dict[str, Any]:
         """Get a label by ID.
-        
+
         Args:
             label_id: Label ID (e.g., 'INBOX', 'Label_123')
-            
+
         Returns:
             Label dict with details
         """
-        return self._users().labels().get(userId="me", id=label_id).execute()
+        return self._execute(self._users().labels().get(userId="me", id=label_id))
 
     def create_label(self, name: str, **kwargs) -> dict[str, Any]:
         """Create a new label.
-        
+
         Args:
             name: Label name
             **kwargs: Additional label properties
-            
+
         Returns:
             Created label dict
         """
         body = {"name": name, **kwargs}
-        return self._users().labels().create(userId="me", body=body).execute()
-
+        return cast(dict[str, Any], self._users().labels().create(userId="me", body=body).execute())
 
     def search_threads(
         self,
         query: str,
         max_results: int = 10,
         page_token: str | None = None,
+        all_pages: bool = False,
     ) -> dict[str, Any]:
         """Search for threads.
-        
+
         Args:
             query: Gmail search query
             max_results: Maximum threads to return
             page_token: Token for pagination
-            
+
         Returns:
             Dict with 'threads' list and optional 'nextPageToken'
         """
-        result = self._users().threads().list(
-            userId="me",
-            q=query,
-            maxResults=max_results,
-            pageToken=page_token,
-        ).execute()
+        params = {"userId": "me", "q": query, "maxResults": max_results}
+        if page_token:
+            params["pageToken"] = page_token
+        pages = iter_pages(
+            lambda token: self._execute(
+                self._users()
+                .threads()
+                .list(**({**params, **({"pageToken": token} if token else {})}))
+            ),
+            page_token=page_token,
+            all_pages=all_pages,
+        )
+        result = next(pages)
+        for page in pages:
+            result.setdefault("threads", []).extend(page.get("threads", []))
+            result["nextPageToken"] = page.get("nextPageToken")
         return result
 
     def search_messages(
@@ -85,27 +94,38 @@ class GmailService(BaseService):
         max_results: int = 10,
         page_token: str | None = None,
         include_body: bool = False,
+        all_pages: bool = False,
     ) -> dict[str, Any]:
         """Search for messages.
-        
+
         Args:
             query: Gmail search query
             max_results: Maximum messages to return
             page_token: Token for pagination
             include_body: Whether to fetch full message bodies
-            
+
         Returns:
             Dict with 'messages' list and optional 'nextPageToken'
         """
-        result = self._users().messages().list(
-            userId="me",
-            q=query,
-            maxResults=max_results,
-            pageToken=page_token,
-        ).execute()
+        params = {"userId": "me", "q": query, "maxResults": max_results}
+        if page_token:
+            params["pageToken"] = page_token
+        pages = iter_pages(
+            lambda token: self._execute(
+                self._users()
+                .messages()
+                .list(**({**params, **({"pageToken": token} if token else {})}))
+            ),
+            page_token=page_token,
+            all_pages=all_pages,
+        )
+        result = next(pages)
+        for page in pages:
+            result.setdefault("messages", []).extend(page.get("messages", []))
+            result["nextPageToken"] = page.get("nextPageToken")
 
         messages = result.get("messages", [])
-        
+
         if include_body and messages:
             detailed = []
             for msg in messages:
@@ -121,19 +141,23 @@ class GmailService(BaseService):
         format: str = "full",
     ) -> dict[str, Any]:
         """Get a message by ID.
-        
+
         Args:
             message_id: Message ID
             format: 'minimal', 'full', 'raw', or 'metadata'
-            
+
         Returns:
             Message dict
         """
-        return self._users().messages().get(
-            userId="me",
-            id=message_id,
-            format=format,
-        ).execute()
+        return self._execute(
+            self._users()
+            .messages()
+            .get(
+                userId="me",
+                id=message_id,
+                format=format,
+            )
+        )
 
     def get_thread(
         self,
@@ -141,20 +165,23 @@ class GmailService(BaseService):
         format: str = "full",
     ) -> dict[str, Any]:
         """Get a thread by ID.
-        
+
         Args:
             thread_id: Thread ID
             format: 'minimal', 'full', or 'metadata'
-            
+
         Returns:
             Thread dict with messages
         """
-        return self._users().threads().get(
-            userId="me",
-            id=thread_id,
-            format=format,
-        ).execute()
-
+        return self._execute(
+            self._users()
+            .threads()
+            .get(
+                userId="me",
+                id=thread_id,
+                format=format,
+            )
+        )
 
     def send_message(
         self,
@@ -168,7 +195,7 @@ class GmailService(BaseService):
         thread_id: str | None = None,
     ) -> dict[str, Any]:
         """Send an email.
-        
+
         Args:
             to: Recipient(s)
             subject: Email subject
@@ -178,10 +205,11 @@ class GmailService(BaseService):
             bcc: BCC recipient(s)
             reply_to: Reply-to address
             thread_id: Thread ID if replying
-            
+
         Returns:
             Sent message dict
         """
+        msg: MIMEMultipart | MIMEText
         if body_html:
             msg = MIMEMultipart("alternative")
             msg.attach(MIMEText(body, "plain"))
@@ -191,7 +219,7 @@ class GmailService(BaseService):
 
         msg["To"] = ", ".join(to) if isinstance(to, list) else to
         msg["Subject"] = subject
-        
+
         if cc:
             msg["Cc"] = ", ".join(cc) if isinstance(cc, list) else cc
         if bcc:
@@ -200,12 +228,14 @@ class GmailService(BaseService):
             msg["Reply-To"] = reply_to
 
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
-        
-        body = {"raw": raw}
-        if thread_id:
-            body["threadId"] = thread_id
 
-        return self._users().messages().send(userId="me", body=body).execute()
+        request_body: dict[str, Any] = {"raw": raw}
+        if thread_id:
+            request_body["threadId"] = thread_id
+
+        return cast(
+            dict[str, Any], self._users().messages().send(userId="me", body=request_body).execute()
+        )
 
     def create_draft(
         self,
@@ -214,12 +244,12 @@ class GmailService(BaseService):
         body: str = "",
     ) -> dict[str, Any]:
         """Create a draft.
-        
+
         Args:
             to: Recipient(s)
             subject: Email subject
             body: Plain text body
-            
+
         Returns:
             Created draft dict
         """
@@ -229,27 +259,38 @@ class GmailService(BaseService):
         msg["Subject"] = subject
 
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
-        
-        return self._users().drafts().create(
-            userId="me",
-            body={"message": {"raw": raw}},
-        ).execute()
+
+        return cast(
+            dict[str, Any],
+            (
+                self._users()
+                .drafts()
+                .create(
+                    userId="me",
+                    body={"message": {"raw": raw}},
+                )
+                .execute()
+            ),
+        )
 
     def list_drafts(self, max_results: int = 10) -> list[dict[str, Any]]:
         """List drafts.
-        
+
         Args:
             max_results: Maximum drafts to return
-            
+
         Returns:
             List of draft dicts
         """
-        result = self._users().drafts().list(
-            userId="me",
-            maxResults=max_results,
-        ).execute()
-        return result.get("drafts", [])
-
+        result = self._execute(
+            self._users()
+            .drafts()
+            .list(
+                userId="me",
+                maxResults=max_results,
+            )
+        )
+        return cast(list[dict[str, Any]], result.get("drafts", []))
 
     def get_attachment(
         self,
@@ -257,23 +298,27 @@ class GmailService(BaseService):
         attachment_id: str,
     ) -> bytes:
         """Get an attachment.
-        
+
         Args:
             message_id: Message ID
             attachment_id: Attachment ID
-            
+
         Returns:
             Attachment data as bytes
         """
-        result = self._users().messages().attachments().get(
-            userId="me",
-            messageId=message_id,
-            id=attachment_id,
-        ).execute()
-        
+        result = self._execute(
+            self._users()
+            .messages()
+            .attachments()
+            .get(
+                userId="me",
+                messageId=message_id,
+                id=attachment_id,
+            )
+        )
+
         data = result.get("data", "")
         return base64.urlsafe_b64decode(data)
-
 
     def modify_thread(
         self,
@@ -282,12 +327,12 @@ class GmailService(BaseService):
         remove_labels: list[str] | None = None,
     ) -> dict[str, Any]:
         """Modify thread labels.
-        
+
         Args:
             thread_id: Thread ID
             add_labels: Labels to add
             remove_labels: Labels to remove
-            
+
         Returns:
             Modified thread dict
         """
@@ -297,11 +342,19 @@ class GmailService(BaseService):
         if remove_labels:
             body["removeLabelIds"] = remove_labels
 
-        return self._users().threads().modify(
-            userId="me",
-            id=thread_id,
-            body=body,
-        ).execute()
+        return cast(
+            dict[str, Any],
+            (
+                self._users()
+                .threads()
+                .modify(
+                    userId="me",
+                    id=thread_id,
+                    body=body,
+                )
+                .execute()
+            ),
+        )
 
     def modify_message(
         self,
@@ -310,12 +363,12 @@ class GmailService(BaseService):
         remove_labels: list[str] | None = None,
     ) -> dict[str, Any]:
         """Modify message labels.
-        
+
         Args:
             message_id: Message ID
             add_labels: Labels to add
             remove_labels: Labels to remove
-            
+
         Returns:
             Modified message dict
         """
@@ -325,20 +378,27 @@ class GmailService(BaseService):
         if remove_labels:
             body["removeLabelIds"] = remove_labels
 
-        return self._users().messages().modify(
-            userId="me",
-            id=message_id,
-            body=body,
-        ).execute()
-
+        return cast(
+            dict[str, Any],
+            (
+                self._users()
+                .messages()
+                .modify(
+                    userId="me",
+                    id=message_id,
+                    body=body,
+                )
+                .execute()
+            ),
+        )
 
     @staticmethod
     def extract_headers(message: dict[str, Any]) -> dict[str, str]:
         """Extract headers from a message.
-        
+
         Args:
             message: Message dict with payload.headers
-            
+
         Returns:
             Dict of header name -> value
         """
@@ -351,35 +411,35 @@ class GmailService(BaseService):
     @staticmethod
     def extract_body(message: dict[str, Any]) -> str:
         """Extract body text from a message.
-        
+
         Args:
             message: Message dict
-            
+
         Returns:
             Body text (plain text preferred)
         """
         payload = message.get("payload", {})
-        
+
         body_data = payload.get("body", {}).get("data")
         if body_data:
             return base64.urlsafe_b64decode(body_data).decode("utf-8", errors="replace")
-        
+
         for part in payload.get("parts", []):
             if part.get("mimeType") == "text/plain":
                 data = part.get("body", {}).get("data")
                 if data:
                     return base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
-        
+
         return ""
 
     @staticmethod
     def get_gmail_url(thread_id: str, account: str | None = None) -> str:
         """Get Gmail web URL for a thread.
-        
+
         Args:
             thread_id: Thread ID
             account: Account email for multi-account URL
-            
+
         Returns:
             Gmail URL
         """

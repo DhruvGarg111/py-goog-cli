@@ -1,54 +1,76 @@
-### Prerequisites
-Ensure you have `pygog` installed on your system. If you haven't installed it yet, you can do so via pip:
-`pip install pygog`
-*(Note: Refer to the main repository README for full installation instructions).*
 # Getting Started with the `pygog ask` AI Agent
 
-The `ask` agent is a powerful natural-language feature within pygog. This guide covers how to configure your environment, secure your API keys, and start running prompts.
+## Prerequisites
 
-## 1. Get Your API Keys
-To use the agent, you need an API key from a supported provider. You only need one to get started:
-* **OpenAI:** [Get your key here](https://platform.openai.com/api-keys)
-* **Anthropic:** [Get your key here](https://console.anthropic.com/settings/keys)
-* **Gemini (Google):** [Get your key here](https://aistudio.google.com/app/apikey)
-* **DeepSeek:** [Get your key here](https://platform.deepseek.com/)
-* **OpenRouter:** [Get your key here](https://openrouter.ai/keys)
+Install from the repository; a public PyPI release is not assumed:
 
-## 2. Environment Configuration
-You must export your API key as an environment variable so `pygog` can access it securely.
+```bash
+uv sync --extra agent
+# or, from an editable checkout:
+pip install -e '.[agent]'
+```
 
-**For Bash / Zsh (Mac & Linux):**
+The agent supports LiteLLM-compatible providers including OpenAI, Anthropic,
+Gemini, DeepSeek, and OpenRouter. Set one provider key in the environment.
+
+## 1. Get an API key
+
+- OpenAI: https://platform.openai.com/api-keys
+- Anthropic: https://console.anthropic.com/settings/keys
+- Gemini: https://aistudio.google.com/app/apikey
+- DeepSeek: https://platform.deepseek.com/
+- OpenRouter: https://openrouter.ai/keys
+
+## 2. Configure the environment
+
+Bash/Zsh:
+
 ```bash
 export OPENAI_API_KEY="your-api-key-here"
-# Or for other providers:
-# export ANTHROPIC_API_KEY="your-api-key-here"
-# export GEMINI_API_KEY="your-api-key-here"
-# export DEEPSEEK_API_KEY="your-api-key-here"
-# export OPENROUTER_API_KEY="your-api-key-here"
+# Or: ANTHROPIC_API_KEY, GEMINI_API_KEY, DEEPSEEK_API_KEY, OPENROUTER_API_KEY
 ```
 
-**For PowerShell (Windows):**
-```bash
+PowerShell:
+
+```powershell
 $env:OPENAI_API_KEY="your-api-key-here"
-# Or for other providers:
-# $env:ANTHROPIC_API_KEY="your-api-key-here"
-# $env:GEMINI_API_KEY="your-api-key-here"
-# $env:DEEPSEEK_API_KEY="your-api-key-here"
-# $env:OPENROUTER_API_KEY="your-api-key-here"
 ```
 
-## 3. Basic Usage Examples
-Once your environment is configured, you can use the ask command directly in your terminal.
+Never commit provider keys or paste them into prompts. pygog redacts
+secret-shaped diagnostic values, but the provider receives the query and any
+selected tool results needed to answer it.
+
+## 3. Basic usage
+
 ```bash
-pygog ask "Draft an email to my manager about the deployment"
-pygog ask "Create a calendar event for tomorrow at 3 PM"
+pygog ask "What meetings do I have today?"
+pygog ask --model deepseek/deepseek-chat "Summarize my unread emails"
 ```
 
-## 4. Model Selection
-By default, pygog ask uses a default model. You can specify exactly which model to use by passing the --model flag.
+## 4. Write safety and tool allowlists
+
+Agent mode is read-only by default. Write-capable tools are not exposed unless
+the local user explicitly passes `--allow-write`, and every write still asks
+for a local confirmation. Retrieved Gmail, Drive, and web content is untrusted
+data; instructions found in retrieved content cannot grant write permission.
+
+Use `--tools` to restrict the run to an exact comma-separated tool allowlist:
+
 ```bash
-pygog ask --model gemini/gemini-2.5-flash-lite "Draft an email to my manager about the deployment"
-pygog ask --model deepseek/deepseek-chat "Write a polite email declining a job offer"
-pygog ask --model openai/gpt-4o "Summarise the report on latest iphone present in my Gdrive"
-pygog ask --model anthropic/claude-3-opus-20240229 "What is silver price currently in Bengaluru?"
-pygog ask --model openrouter/anthropic/claude-3-opus "Explain the theory of relativity"
+pygog ask --tools gmail_search,drive_search "Find the Q4 report"
+pygog ask --allow-write --tools gmail_send "Send this exact message to ..."
+```
+
+The legacy `--yes` flag is deprecated and cannot bypass local confirmation.
+
+## 5. Model selection
+
+```bash
+pygog ask --model gemini/gemini-2.5-flash-lite "Explain this calendar"
+pygog ask --model openai/gpt-4o "Summarize my Drive files"
+pygog ask --model anthropic/claude-3-opus-20240229 "Summarize my inbox"
+pygog ask --model openrouter/anthropic/claude-3-opus "Search the web"
+```
+
+For JSON/TSV scripting, see `docs/json_scripting.md`. The agent requires the
+optional `agent` dependency extra; the base CLI remains usable without it.

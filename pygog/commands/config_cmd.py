@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -24,7 +23,7 @@ def path_cmd():
 def list_cmd():
     """List all configuration values."""
     config = get_config()
-    data = config.get_all()
+    data = config.get_all(redact=True)
 
     if not data:
         console.print("[yellow]No configuration set.[/yellow]")
@@ -60,7 +59,7 @@ def get_cmd(
 ):
     """Get a configuration value."""
     config = get_config()
-    value = config.get(key)
+    value = config.get(key, redact=True)
 
     if value is None:
         console.print(f"[yellow]Key '{key}' not set[/yellow]")
@@ -77,13 +76,14 @@ def set_cmd(
     config = get_config()
 
     import json
+
     try:
         parsed = json.loads(value)
         config.set(key, parsed)
     except json.JSONDecodeError:
         config.set(key, value)
 
-    console.print(f"[green][OK][/green] Set {key} = {value}")
+    console.print(f"[green][OK][/green] Set {key} = {config.get(key, redact=True)}")
 
 
 @app.command("unset")

@@ -85,11 +85,17 @@ This project is a Python reimplementation with added LLM support more advanced A
 
 ```bash
 # Clone the repository
-git clone https://github.com/pygog/pygog.git
-cd pygog
+git clone https://github.com/DhruvGarg111/py-goog-cli.git
+cd py-goog-cli
 
-# Install in editable mode
+# Recommended reproducible development install
+uv sync --all-groups
+
+# Or install the base CLI in editable mode
 pip install -e .
+
+# Install optional natural-language agent dependencies
+pip install -e '.[agent]'
 ```
 
 > **Note:** Requires Python 3.10 or higher.
@@ -116,6 +122,10 @@ pygog auth credentials path/to/credentials.json
 
 ```bash
 # Opens browser for secure OAuth flow
+# Without --services, authorizes Gmail, Calendar, Drive, and Tasks
+pygog auth add your.email@gmail.com
+
+# Or authorize a specific subset
 pygog auth add your.email@gmail.com --services gmail,drive,calendar,tasks
 ```
 

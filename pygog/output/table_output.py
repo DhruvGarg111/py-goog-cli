@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from rich.console import Console
 from rich.table import Table
@@ -15,7 +16,7 @@ def print_table(
     console: Console | None = None,
 ) -> None:
     """Print data as a rich table.
-    
+
     Args:
         data: List of dictionaries to display
         columns: Column names to show (defaults to all keys from first row)
@@ -33,7 +34,7 @@ def print_table(
         columns = list(data[0].keys())
 
     table = Table(title=title, show_header=True, header_style="bold cyan")
-    
+
     for col in columns:
         table.add_column(col.upper().replace("_", " "))
 

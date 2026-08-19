@@ -43,7 +43,7 @@ Manage configuration.
 
 | Command | Description |
 |---------|-------------|
-| `pygog config show` | Show current configuration |
+| `pygog config list` | List current configuration |
 | `pygog config set <key> <value>` | Set a config value |
 | `pygog config unset <key>` | Remove a config value |
 | `pygog config path` | Show config file path |
@@ -178,4 +178,4 @@ Show current time and timezone.
 
 | Command | Description |
 |---------|-------------|
-| `pygog time` | Show current time |
+| `pygog time now` | Show current time |

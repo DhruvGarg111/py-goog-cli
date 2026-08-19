@@ -3,28 +3,56 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from pygog.auth.client import GoogleAuthClient, SCOPES, get_scopes_for_services
+from pygog.auth.client import SCOPES, GoogleAuthClient, get_scopes_for_services
 from pygog.auth.credentials import CredentialsManager
+from pygog.auth.keyring import KeyringStorageError, configure_keyring_backend
 from pygog.config import get_config
+from pygog.interaction import confirm_destructive, execute_mutation
+from pygog.output import print_json, print_plain
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
 err_console = Console(stderr=True)
 
 
+def _get_auth_client_name(
+    client: str | None,
+    account: str | None = None,
+) -> str:
+    """Resolve an auth client from explicit, global, account, or config routing."""
+    from pygog.cli import state
+
+    if client is not None:
+        return client
+    if state.client is not None:
+        return state.client
+
+    config = get_config()
+    if account is not None:
+        return config.get_client_for_account(account)
+    return config.client
+
+
+def _get_auth_client(
+    client: str | None,
+    account: str | None = None,
+) -> GoogleAuthClient:
+    """Construct an auth client using the shared routing precedence."""
+    return GoogleAuthClient(_get_auth_client_name(client, account))
+
+
 @app.command("credentials")
 def credentials_cmd(
-    path: Optional[Path] = typer.Argument(
+    path: Path | None = typer.Argument(
         None,
         help="Path to OAuth client credentials JSON (downloaded from Google Cloud Console)",
     ),
-    domain: Optional[str] = typer.Option(
+    domain: str | None = typer.Option(
         None,
         "--domain",
         help="Associate this client with a domain for auto-selection",
@@ -35,7 +63,7 @@ def credentials_cmd(
         "-l",
         help="List stored credentials",
     ),
-    client: Optional[str] = typer.Option(
+    client: str | None = typer.Option(
         None,
         "--client",
         help="OAuth client name (default: 'default')",
@@ -60,7 +88,7 @@ def credentials_cmd(
         console.print(table)
         return
 
-    client_name = client or "default"
+    client_name = _get_auth_client_name(client)
     manager = CredentialsManager(client_name)
 
     try:
@@ -79,10 +107,10 @@ def credentials_cmd(
 @app.command("add")
 def add_cmd(
     email: str = typer.Argument(..., help="Google account email"),
-    services: Optional[str] = typer.Option(
+    services: str | None = typer.Option(
         None,
         "--services",
-        help="Comma-separated services to authorize (default: gmail,calendar,drive,tasks,contacts,people)",
+        help="Comma-separated services to authorize (default: gmail,calendar,drive,tasks)",
     ),
     readonly: bool = typer.Option(
         False,
@@ -94,28 +122,25 @@ def add_cmd(
         "--force-consent",
         help="Force consent screen even if already authorized",
     ),
-    client: Optional[str] = typer.Option(
+    client: str | None = typer.Option(
         None,
         "--client",
         help="OAuth client name",
     ),
 ):
     """Authorize a Google account via OAuth."""
-    from pygog.cli import state
-
-    client_name = client or state.client
-    auth_client = GoogleAuthClient(client_name)
+    auth_client = _get_auth_client(client)
 
     service_list = None
     if services:
         service_list = [s.strip() for s in services.split(",")]
 
     console.print(f"Authorizing {email}...")
-    
+
     try:
         scopes = get_scopes_for_services(service_list, readonly)
         console.print(f"Requesting {len(scopes)} scopes for services")
-        
+
         auth_client.authorize(
             account=email,
             services=service_list,
@@ -135,17 +160,14 @@ def list_cmd(
         "--check",
         help="Verify tokens are still valid",
     ),
-    client: Optional[str] = typer.Option(
+    client: str | None = typer.Option(
         None,
         "--client",
         help="OAuth client name",
     ),
 ):
     """List authorized accounts."""
-    from pygog.cli import state
-
-    client_name = client or state.client
-    auth_client = GoogleAuthClient(client_name)
+    auth_client = _get_auth_client(client)
     accounts = auth_client.list_accounts()
 
     if not accounts:
@@ -177,7 +199,7 @@ def list_cmd(
 @app.command("remove")
 def remove_cmd(
     email: str = typer.Argument(..., help="Account email to remove"),
-    client: Optional[str] = typer.Option(
+    client: str | None = typer.Option(
         None,
         "--client",
         help="OAuth client name",
@@ -190,17 +212,28 @@ def remove_cmd(
     ),
 ):
     """Remove an authorized account."""
+    confirm_destructive(
+        "remove authorized account",
+        f"account={email}",
+        local_force=force,
+    )
+
+    removed = execute_mutation(
+        lambda: _get_auth_client(client).remove_account(email),
+        action="remove authorized account",
+    )
+
     from pygog.cli import state
 
-    client_name = client or state.client
-    auth_client = GoogleAuthClient(client_name)
+    if state.json_output:
+        print_json({"removed": bool(removed), "account": email})
+        return
 
-    if not force:
-        confirm = typer.confirm(f"Remove account '{email}'?")
-        if not confirm:
-            raise typer.Exit(0)
+    if state.plain_output:
+        print_plain([{"removed": bool(removed), "account": email}], columns=["removed", "account"])
+        return
 
-    if auth_client.remove_account(email):
+    if removed:
         console.print(f"[green][OK][/green] Account '{email}' removed")
     else:
         err_console.print(f"[yellow]Account '{email}' not found[/yellow]")
@@ -208,7 +241,7 @@ def remove_cmd(
 
 @app.command("status")
 def status_cmd(
-    account: Optional[str] = typer.Option(
+    account: str | None = typer.Option(
         None,
         "--account",
         "-a",
@@ -220,20 +253,20 @@ def status_cmd(
 
     config = get_config()
     email = config.resolve_account(account) or state.account
-    
+
     if not email:
         err_console.print("[red]No account specified.[/red]")
         err_console.print("Use --account or set GOG_ACCOUNT environment variable")
         raise typer.Exit(1)
 
-    client_name = config.get_client_for_account(email)
+    client_name = _get_auth_client_name(None, email)
     auth_client = GoogleAuthClient(client_name)
-    
+
     status = auth_client.check_token(email)
-    
+
     console.print(f"Account: [cyan]{email}[/cyan]")
     console.print(f"Client: {client_name}")
-    
+
     if status.get("valid"):
         console.print("Status: [green]Authenticated[/green]")
         if status.get("refreshed"):
@@ -241,7 +274,7 @@ def status_cmd(
         if status.get("scopes"):
             console.print(f"Scopes: {len(status['scopes'])} authorized")
     else:
-        console.print(f"Status: [red]Not authenticated[/red]")
+        console.print("Status: [red]Not authenticated[/red]")
         if status.get("error"):
             console.print(f"  Error: {status['error']}")
 
@@ -315,9 +348,9 @@ def alias_unset(
 
 @app.command("keyring")
 def keyring_cmd(
-    backend: Optional[str] = typer.Argument(
+    backend: str | None = typer.Argument(
         None,
-        help="Backend to set: auto, keychain, file",
+        help="Backend to set: auto or keychain",
     ),
 ):
     """Show or set keyring backend."""
@@ -328,10 +361,14 @@ def keyring_cmd(
         console.print(f"Keyring backend: [cyan]{current}[/cyan]")
         console.print(f"Config path: {config.path}")
     else:
-        if backend not in ("auto", "keychain", "file"):
+        if backend not in ("auto", "keychain", "native"):
             err_console.print(f"[red]Invalid backend:[/red] {backend}")
-            err_console.print("Valid options: auto, keychain, file")
+            err_console.print("Valid options: auto, keychain")
             raise typer.Exit(1)
-
+        try:
+            configure_keyring_backend(backend)
+        except KeyringStorageError as error:
+            err_console.print(f"[red]Error:[/red] {error}")
+            raise typer.Exit(1)
         config.set("keyring_backend", backend)
         console.print(f"[green][OK][/green] Keyring backend set to '{backend}'")
