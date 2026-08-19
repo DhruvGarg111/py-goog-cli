@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
-from pygog.services.base import BaseService
+from pygog.services.base import BaseService, iter_pages
 
 
 class TasksService(BaseService):
@@ -22,61 +22,66 @@ class TasksService(BaseService):
         """Get tasks API."""
         return self._get_service().tasks()
 
-
     def list_tasklists(self, max_results: int = 100) -> list[dict[str, Any]]:
         """List all task lists.
-        
+
         Returns:
             List of task list dicts
         """
-        result = self._tasklists().list(maxResults=max_results).execute()
-        return result.get("items", [])
+        result = self._execute(self._tasklists().list(maxResults=max_results))
+        return cast(list[dict[str, Any]], result.get("items", []))
 
     def get_tasklist(self, tasklist_id: str) -> dict[str, Any]:
         """Get a task list by ID.
-        
+
         Args:
             tasklist_id: Task list ID
-            
+
         Returns:
             Task list dict
         """
-        return self._tasklists().get(tasklist=tasklist_id).execute()
+        return self._execute(self._tasklists().get(tasklist=tasklist_id))
 
     def create_tasklist(self, title: str) -> dict[str, Any]:
         """Create a new task list.
-        
+
         Args:
             title: Task list title
-            
+
         Returns:
             Created task list dict
         """
-        return self._tasklists().insert(body={"title": title}).execute()
+        return cast(dict[str, Any], self._tasklists().insert(body={"title": title}).execute())
 
     def update_tasklist(self, tasklist_id: str, title: str) -> dict[str, Any]:
         """Update a task list.
-        
+
         Args:
             tasklist_id: Task list ID
             title: New title
-            
+
         Returns:
             Updated task list dict
         """
-        return self._tasklists().update(
-            tasklist=tasklist_id,
-            body={"title": title},
-        ).execute()
+        return cast(
+            dict[str, Any],
+            (
+                self._tasklists()
+                .update(
+                    tasklist=tasklist_id,
+                    body={"title": title},
+                )
+                .execute()
+            ),
+        )
 
     def delete_tasklist(self, tasklist_id: str) -> None:
         """Delete a task list.
-        
+
         Args:
             tasklist_id: Task list ID
         """
         self._tasklists().delete(tasklist=tasklist_id).execute()
-
 
     def list_tasks(
         self,
@@ -84,37 +89,51 @@ class TasksService(BaseService):
         max_results: int = 100,
         show_completed: bool = True,
         show_hidden: bool = False,
+        page_token: str | None = None,
+        all_pages: bool = False,
     ) -> list[dict[str, Any]]:
         """List tasks in a task list.
-        
+
         Args:
             tasklist_id: Task list ID
             max_results: Maximum tasks to return
             show_completed: Include completed tasks
             show_hidden: Include hidden tasks
-            
+
         Returns:
             List of task dicts
         """
-        result = self._tasks().list(
-            tasklist=tasklist_id,
-            maxResults=max_results,
-            showCompleted=show_completed,
-            showHidden=show_hidden,
-        ).execute()
-        return result.get("items", [])
+        params = {
+            "tasklist": tasklist_id,
+            "maxResults": max_results,
+            "showCompleted": show_completed,
+            "showHidden": show_hidden,
+        }
+        if page_token:
+            params["pageToken"] = page_token
+        pages = iter_pages(
+            lambda token: self._execute(
+                self._tasks().list(**({**params, **({"pageToken": token} if token else {})}))
+            ),
+            page_token=page_token,
+            all_pages=all_pages,
+        )
+        items = []
+        for result in pages:
+            items.extend(result.get("items", []))
+        return items
 
     def get_task(self, tasklist_id: str, task_id: str) -> dict[str, Any]:
         """Get a task by ID.
-        
+
         Args:
             tasklist_id: Task list ID
             task_id: Task ID
-            
+
         Returns:
             Task dict
         """
-        return self._tasks().get(tasklist=tasklist_id, task=task_id).execute()
+        return self._execute(self._tasks().get(tasklist=tasklist_id, task=task_id))
 
     def create_task(
         self,
@@ -124,21 +143,21 @@ class TasksService(BaseService):
         due: str | datetime | None = None,
     ) -> dict[str, Any]:
         """Create a new task.
-        
+
         Args:
             tasklist_id: Task list ID
             title: Task title
             notes: Optional notes/description
             due: Optional due date (RFC 3339 or datetime)
-            
+
         Returns:
             Created task dict
         """
         task = {"title": title}
-        
+
         if notes:
             task["notes"] = notes
-        
+
         if due:
             if isinstance(due, datetime):
                 due = due.strftime("%Y-%m-%dT00:00:00.000Z")
@@ -146,7 +165,7 @@ class TasksService(BaseService):
                 due = f"{due}T00:00:00.000Z"
             task["due"] = due
 
-        return self._tasks().insert(tasklist=tasklist_id, body=task).execute()
+        return cast(dict[str, Any], self._tasks().insert(tasklist=tasklist_id, body=task).execute())
 
     def update_task(
         self,
@@ -158,7 +177,7 @@ class TasksService(BaseService):
         status: str | None = None,
     ) -> dict[str, Any]:
         """Update a task.
-        
+
         Args:
             tasklist_id: Task list ID
             task_id: Task ID
@@ -166,7 +185,7 @@ class TasksService(BaseService):
             notes: New notes
             due: New due date
             status: 'needsAction' or 'completed'
-            
+
         Returns:
             Updated task dict
         """
@@ -185,19 +204,26 @@ class TasksService(BaseService):
         if status is not None:
             task["status"] = status
 
-        return self._tasks().update(
-            tasklist=tasklist_id,
-            task=task_id,
-            body=task,
-        ).execute()
+        return cast(
+            dict[str, Any],
+            (
+                self._tasks()
+                .update(
+                    tasklist=tasklist_id,
+                    task=task_id,
+                    body=task,
+                )
+                .execute()
+            ),
+        )
 
     def complete_task(self, tasklist_id: str, task_id: str) -> dict[str, Any]:
         """Mark a task as completed.
-        
+
         Args:
             tasklist_id: Task list ID
             task_id: Task ID
-            
+
         Returns:
             Updated task dict
         """
@@ -205,11 +231,11 @@ class TasksService(BaseService):
 
     def uncomplete_task(self, tasklist_id: str, task_id: str) -> dict[str, Any]:
         """Mark a task as not completed.
-        
+
         Args:
             tasklist_id: Task list ID
             task_id: Task ID
-            
+
         Returns:
             Updated task dict
         """
@@ -217,7 +243,7 @@ class TasksService(BaseService):
 
     def delete_task(self, tasklist_id: str, task_id: str) -> None:
         """Delete a task.
-        
+
         Args:
             tasklist_id: Task list ID
             task_id: Task ID
@@ -226,20 +252,19 @@ class TasksService(BaseService):
 
     def clear_completed(self, tasklist_id: str) -> None:
         """Clear all completed tasks from a list.
-        
+
         Args:
             tasklist_id: Task list ID
         """
         self._tasks().clear(tasklist=tasklist_id).execute()
 
-
     @staticmethod
     def format_due(due: str | None) -> str:
         """Format due date for display.
-        
+
         Args:
             due: RFC 3339 due date string
-            
+
         Returns:
             Formatted date string
         """
@@ -254,10 +279,10 @@ class TasksService(BaseService):
     @staticmethod
     def get_status_icon(status: str) -> str:
         """Get status icon for display.
-        
+
         Args:
             status: Task status
-            
+
         Returns:
             Icon character
         """

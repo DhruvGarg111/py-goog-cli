@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Optional
 import zoneinfo
+from datetime import datetime
 
 import typer
 from rich.console import Console
@@ -17,7 +16,7 @@ console = Console()
 
 @app.command("now")
 def now_cmd(
-    timezone: Optional[str] = typer.Option(
+    timezone: str | None = typer.Option(
         None,
         "--timezone",
         "-tz",
