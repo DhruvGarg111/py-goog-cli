@@ -338,13 +338,15 @@ def calendar_events(
     Returns:
         List of upcoming events with summary, time, and attendees
     """
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     from pygog.services.calendar import CalendarService
+    from pygog.utils import datetime as datetime_utils
 
     service = CalendarService(account=account)
 
-    now = datetime.now()
+    timezone = datetime_utils.resolve_timezone()
+    now = datetime_utils.now_in_timezone(timezone)
     time_min = now
     time_max = now + timedelta(days=days)
 
@@ -385,13 +387,15 @@ def calendar_search(query: str, days: int = 30, account: str | None = None) -> l
     Returns:
         List of matching events
     """
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     from pygog.services.calendar import CalendarService
+    from pygog.utils import datetime as datetime_utils
 
     service = CalendarService(account=account)
 
-    now = datetime.now()
+    timezone = datetime_utils.resolve_timezone()
+    now = datetime_utils.now_in_timezone(timezone)
     time_min = now - timedelta(days=30)  # Also search past 30 days
     time_max = now + timedelta(days=days)
 
@@ -429,24 +433,28 @@ def calendar_create(
     location: str | None = None,
     attendees: str | None = None,
     account: str | None = None,
+    timezone: str | None = None,
 ) -> dict:
     """Create a new calendar event.
 
     Args:
         summary: Event title
-        start_time: Start time in ISO format (e.g., 2026-02-01T10:00:00)
-        end_time: End time in ISO format
+        start_time: Start time in ISO format (e.g., 2026-02-01T10:00:00+05:30)
+        end_time: End time in ISO format; naive values use the resolved timezone
         description: Optional event description
         location: Optional event location
         attendees: Optional comma-separated list of attendee emails
         account: Google account email
+        timezone: IANA timezone for naive start/end times (default: configured/system timezone)
 
     Returns:
         Created event details
     """
     from pygog.services.calendar import CalendarService
+    from pygog.utils import datetime as datetime_utils
 
     service = CalendarService(account=account)
+    resolved_timezone = datetime_utils.resolve_timezone(timezone)
 
     attendee_list = None
     if attendees:
@@ -460,6 +468,7 @@ def calendar_create(
         description=description,
         location=location,
         attendees=attendee_list,
+        timezone=str(resolved_timezone),
     )
 
     return {"id": event["id"], "summary": summary, "start": start_time, "status": "created"}

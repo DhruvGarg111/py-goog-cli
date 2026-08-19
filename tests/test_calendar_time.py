@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 from zoneinfo import ZoneInfo
 
+import click
 import pytest
 from typer.testing import CliRunner
 
@@ -124,7 +125,7 @@ def test_events_today_uses_resolved_timezone_and_aware_range(monkeypatch):
         ["events", "--today", "--timezone", "Asia/Kolkata"],
     )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code == 0, click.unstyle(result.output)
     kwargs = service.list_events.call_args.kwargs
     assert kwargs["time_min"] == datetime(2025, 1, 16, 0, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
     assert kwargs["time_max"] == datetime(2025, 1, 17, 0, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
@@ -143,7 +144,7 @@ def test_events_tomorrow_starts_at_next_local_midnight(monkeypatch):
         ["events", "--tomorrow", "--timezone", "UTC"],
     )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code == 0, click.unstyle(result.output)
     kwargs = service.list_events.call_args.kwargs
     assert kwargs["time_min"] == datetime(2025, 1, 16, 0, 0, tzinfo=ZoneInfo("UTC"))
     assert kwargs["time_max"] == datetime(2025, 1, 17, 0, 0, tzinfo=ZoneInfo("UTC"))
@@ -167,7 +168,7 @@ def test_events_manual_from_to_interpret_naive_values_in_selected_timezone(monke
         ],
     )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code == 0, click.unstyle(result.output)
     kwargs = service.list_events.call_args.kwargs
     assert kwargs["time_min"] == datetime(2025, 1, 16, 9, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
     assert kwargs["time_max"] == datetime(2025, 1, 16, 10, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
@@ -184,7 +185,7 @@ def test_search_tomorrow_uses_local_day_range(monkeypatch):
         ["search", "planning", "--tomorrow", "--timezone", "Asia/Kolkata"],
     )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code == 0, click.unstyle(result.output)
     kwargs = service.list_events.call_args.kwargs
     assert kwargs["time_min"] == datetime(2025, 1, 17, 0, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
     assert kwargs["time_max"] == datetime(2025, 1, 18, 0, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
@@ -210,7 +211,7 @@ def test_search_manual_from_to_uses_aware_ranges(monkeypatch):
         ],
     )
 
-    assert result.exit_code == 0, result.stdout
+    assert result.exit_code == 0, click.unstyle(result.output)
     kwargs = service.list_events.call_args.kwargs
     assert kwargs["time_min"] == datetime(2025, 1, 16, 9, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
     assert kwargs["time_max"] == datetime(2025, 1, 16, 10, 0, tzinfo=ZoneInfo("Asia/Kolkata"))
@@ -231,7 +232,7 @@ def test_search_rejects_incompatible_relative_and_manual_ranges(monkeypatch, arg
     result = runner.invoke(calendar_cmd.app, ["search", "planning", *args])
 
     assert result.exit_code != 0
-    assert message in result.output
+    assert message in click.unstyle(result.output)
     service.list_events.assert_not_called()
 
 
@@ -255,7 +256,7 @@ def test_events_days_and_default_ranges_are_aware(monkeypatch):
         ),
     ):
         result = runner.invoke(calendar_cmd.app, args)
-        assert result.exit_code == 0, result.output
+        assert result.exit_code == 0, click.unstyle(result.output)
         kwargs = service.list_events.call_args.kwargs
         assert kwargs["time_min"] == expected_min
         assert kwargs["time_max"] == expected_max
@@ -269,7 +270,7 @@ def test_events_week_is_local_midnight_to_next_week(monkeypatch):
 
     result = runner.invoke(calendar_cmd.app, ["events", "--week", "--timezone", "UTC"])
 
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 0, click.unstyle(result.output)
     kwargs = service.list_events.call_args.kwargs
     assert kwargs["time_min"] == datetime(2025, 1, 13, 0, 0, tzinfo=ZoneInfo("UTC"))
     assert kwargs["time_max"] == datetime(2025, 1, 20, 0, 0, tzinfo=ZoneInfo("UTC"))
@@ -283,7 +284,7 @@ def test_search_today_and_days_ranges_are_aware(monkeypatch):
     _freeze_now(monkeypatch, fixed)
 
     result = runner.invoke(calendar_cmd.app, ["search", "planning", "--today", "--timezone", "UTC"])
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 0, click.unstyle(result.output)
     kwargs = service.list_events.call_args.kwargs
     assert kwargs["time_min"] == datetime(2025, 1, 15, 0, 0, tzinfo=ZoneInfo("UTC"))
     assert kwargs["time_max"] == datetime(2025, 1, 16, 0, 0, tzinfo=ZoneInfo("UTC"))
@@ -291,7 +292,7 @@ def test_search_today_and_days_ranges_are_aware(monkeypatch):
     result = runner.invoke(
         calendar_cmd.app, ["search", "planning", "--days", "2", "--timezone", "UTC"]
     )
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 0, click.unstyle(result.output)
     kwargs = service.list_events.call_args.kwargs
     assert kwargs["time_min"] == fixed - timedelta(days=30)
     assert kwargs["time_max"] == fixed + timedelta(days=2)
@@ -301,7 +302,7 @@ def test_search_rejects_today_and_days_together(monkeypatch):
     result = runner.invoke(calendar_cmd.app, ["search", "planning", "--today", "--days", "2"])
 
     assert result.exit_code != 0
-    assert "cannot be combined" in result.output
+    assert "cannot be combined" in click.unstyle(result.output)
 
 
 def test_service_rejects_naive_create_datetime(calendar_service):
@@ -330,6 +331,29 @@ def test_service_interprets_naive_create_datetime_with_explicit_timezone(calenda
     body = calendar_service._service.events.return_value.insert.call_args.kwargs["body"]
     assert body["start"]["dateTime"] == "2025-01-16T09:00:00+05:30"
     assert body["end"]["dateTime"] == "2025-01-16T10:00:00+05:30"
+
+
+def test_service_formats_all_day_datetime_updates_as_dates(calendar_service):
+    calendar_service._service.events.return_value.get.return_value.execute.return_value = {
+        "id": "event-1",
+        "summary": "Conference",
+        "start": {"date": "2025-01-16"},
+        "end": {"date": "2025-01-17"},
+    }
+    calendar_service._service.events.return_value.update.return_value.execute.return_value = {
+        "id": "event-1"
+    }
+
+    calendar_service.update_event(
+        calendar_id="primary",
+        event_id="event-1",
+        start=datetime(2025, 2, 3, 9, 30, tzinfo=ZoneInfo("Asia/Kolkata")),
+        end=datetime(2025, 2, 5, 18, 0, tzinfo=ZoneInfo("Asia/Kolkata")),
+    )
+
+    body = calendar_service._service.events.return_value.update.call_args.kwargs["body"]
+    assert body["start"]["date"] == "2025-02-03"
+    assert body["end"]["date"] == "2025-02-05"
 
 
 def test_system_timezone_uses_tzlocal_iana_name_without_subprocess(monkeypatch):
@@ -411,7 +435,8 @@ def test_invalid_manual_range_values_use_typer_validation(monkeypatch, args, opt
     result = runner.invoke(calendar_cmd.app, [*args, "--timezone", "UTC"])
 
     assert result.exit_code != 0
-    assert option_name in result.output
-    assert "Invalid datetime" in result.output
-    assert "Traceback" not in result.output
+    output = click.unstyle(result.output)
+    assert option_name in output
+    assert "Invalid datetime" in output
+    assert "Traceback" not in output
     get_service.assert_not_called()

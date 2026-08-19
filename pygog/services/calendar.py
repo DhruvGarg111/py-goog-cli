@@ -266,7 +266,9 @@ class CalendarService(BaseService):
                     event["start"].get("timeZone"),
                 )
             else:
-                event["start"]["date"] = start
+                event["start"]["date"] = (
+                    start.strftime("%Y-%m-%d") if isinstance(start, datetime) else start
+                )
         if end is not None:
             if "dateTime" in event.get("end", {}):
                 event["end"]["dateTime"] = _serialize_event_datetime(
@@ -275,7 +277,9 @@ class CalendarService(BaseService):
                     event["end"].get("timeZone"),
                 )
             else:
-                event["end"]["date"] = end
+                event["end"]["date"] = (
+                    end.strftime("%Y-%m-%d") if isinstance(end, datetime) else end
+                )
 
         return cast(
             dict[str, Any],
