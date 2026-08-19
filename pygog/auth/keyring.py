@@ -11,12 +11,13 @@ import keyring
 from keyring.errors import KeyringError, PasswordDeleteError
 
 from pygog.config import get_config
+from pygog.errors import ConfigurationError
 
 KEYRING_SERVICE = "pygog"
 SERVICE_ACCOUNT_KEY_PREFIX = "service-account:"
 
 
-class KeyringStorageError(RuntimeError):
+class KeyringStorageError(ConfigurationError, RuntimeError):
     """Raised when the configured keyring backend cannot be used."""
 
 
@@ -31,7 +32,14 @@ def configure_keyring_backend(backend_name: str = "auto") -> None:
 
     name = backend_name.strip().casefold()
     if name == "auto":
-        backend = keyring.get_keyring()
+        try:
+            backend = keyring.get_keyring()
+        except Exception as exc:
+            raise KeyringStorageError(
+                "System keyring is unavailable. Install and configure a supported system "
+                "keyring backend (Secret Service on Linux, Keychain on macOS, or Windows "
+                "Credential Locker), then retry."
+            ) from exc
         backend_type = type(backend)
         backend_label = f"{backend_type.__module__}.{backend_type.__name__}".casefold()
         if any(marker in backend_label for marker in ("plaintext", "filekeyring", ".null")):

@@ -15,6 +15,7 @@ from typing import Any, NoReturn, TypeVar
 import typer
 from rich.console import Console
 
+from pygog.errors import PygogError, ValidationError
 from pygog.output import print_json, print_plain
 
 T = TypeVar("T")
@@ -115,6 +116,7 @@ def fail_interaction(
     message: str,
     *,
     code: str = "error",
+    exit_code: int = 1,
     json_output: bool | None = None,
     plain_output: bool | None = None,
 ) -> NoReturn:
@@ -135,7 +137,7 @@ def fail_interaction(
         print_json({"error": {"code": code, "message": message}})
     else:
         sys.stderr.write(f"Error: {message}\n")
-    raise typer.Exit(1)
+    raise typer.Exit(exit_code)
 
 
 def execute_mutation(
@@ -150,6 +152,23 @@ def execute_mutation(
         return operation()
     except typer.Exit:
         raise
+    except PygogError as exc:
+        fail_interaction(
+            exc.message,
+            code=exc.code,
+            exit_code=exc.exit_code,
+            json_output=json_output,
+            plain_output=plain_output,
+        )
+    except ValueError as exc:
+        error = ValidationError(str(exc))
+        fail_interaction(
+            error.message,
+            code=error.code,
+            exit_code=error.exit_code,
+            json_output=json_output,
+            plain_output=plain_output,
+        )
     except Exception as exc:
         state = _cli_state()
         if state.verbose:

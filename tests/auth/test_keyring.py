@@ -16,6 +16,13 @@ from pygog.auth.keyring import (
     ServiceAccountStorage,
     configure_keyring_backend,
 )
+from pygog.errors import ConfigurationError, PygogError
+
+
+@pytest.fixture(autouse=True)
+def _mock_keyring_reads(monkeypatch):
+    """Keep every keyring test independent of the host's configured backend."""
+    monkeypatch.setattr(keyring_module.keyring, "get_password", Mock(return_value=None))
 
 
 def test_missing_account_is_distinct_from_corrupt_data(monkeypatch):
@@ -43,6 +50,28 @@ def test_keyring_backend_failure_is_typed(monkeypatch):
     with pytest.raises(RuntimeError, match="backend unavailable") as error:
         storage.get_token("user@example.com")
     assert error.value.__class__.__name__ == "KeyringStorageError"
+
+
+def test_keyring_storage_errors_are_safe_configuration_errors():
+    error = KeyringStorageError("System keyring is unavailable")
+
+    assert isinstance(error, PygogError)
+    assert isinstance(error, ConfigurationError)
+    assert error.code == "configuration_error"
+
+
+def test_auto_backend_discovery_failure_is_typed_and_actionable(monkeypatch):
+    monkeypatch.setattr(
+        keyring_module.keyring,
+        "get_keyring",
+        Mock(side_effect=RuntimeError("No recommended backend was available")),
+    )
+
+    with pytest.raises(KeyringStorageError) as error:
+        configure_keyring_backend("auto")
+
+    assert "supported system keyring backend" in error.value.message
+    assert "Linux" in error.value.message
 
 
 def test_store_backend_failure_is_typed(monkeypatch):

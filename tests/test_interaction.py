@@ -7,6 +7,7 @@ import pytest
 import typer
 
 from pygog.cli import state
+from pygog.errors import ConfigurationError, ValidationError
 from pygog.interaction import (
     InteractionPolicy,
     confirm_destructive,
@@ -125,6 +126,59 @@ def test_json_mutation_error_is_only_on_stdout(capsys):
     payload = json.loads(captured.out)
     assert payload["error"]["code"] == "mutation_failed"
     assert "send email failed" in payload["error"]["message"]
+    assert captured.err == ""
+
+
+def test_mutation_preserves_safe_local_validation_message(capsys):
+    message = "Attendee response must be accepted, declined, or tentative"
+
+    with pytest.raises(typer.Exit) as exc_info:
+        execute_mutation(
+            lambda: (_ for _ in ()).throw(ValueError(message)),
+            action="respond to calendar event",
+            json_output=True,
+        )
+
+    captured = capsys.readouterr()
+    assert exc_info.value.exit_code == ValidationError.exit_code
+    assert json.loads(captured.out) == {"error": {"code": "validation_error", "message": message}}
+    assert captured.err == ""
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "No account specified. Use --account or set GOG_ACCOUNT.",
+        "No credentials found for 'user@example.com'. Run: pygog auth add user@example.com",
+    ],
+)
+def test_mutation_preserves_missing_authentication_guidance(capsys, message):
+    with pytest.raises(typer.Exit):
+        execute_mutation(
+            lambda: (_ for _ in ()).throw(ValueError(message)),
+            action="send email",
+        )
+
+    captured = capsys.readouterr()
+    assert message in captured.err
+    assert "send email failed" not in captured.err
+
+
+def test_mutation_preserves_typed_pygog_error(capsys):
+    error = ConfigurationError("System keyring is unavailable; configure Secret Service.")
+
+    with pytest.raises(typer.Exit) as exc_info:
+        execute_mutation(
+            lambda: (_ for _ in ()).throw(error),
+            action="remove authorized account",
+            json_output=True,
+        )
+
+    captured = capsys.readouterr()
+    assert exc_info.value.exit_code == error.exit_code
+    assert json.loads(captured.out) == {
+        "error": {"code": "configuration_error", "message": error.message}
+    }
     assert captured.err == ""
 
 
