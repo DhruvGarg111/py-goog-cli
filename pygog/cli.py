@@ -2,43 +2,66 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, cast
 
 import typer
 from rich.console import Console
+from typer.core import TyperGroup
 
 from pygog import __version__
+from pygog.commands import ask, auth, calendar, config_cmd, drive, gmail, tasks, time_cmd
 from pygog.config import get_config
-from pygog.commands import auth, config_cmd, time_cmd, gmail, calendar, drive, tasks, ask
+from pygog.context import CliContext, bind_context, get_context, state
+from pygog.errors import PygogError, ValidationError, emit_error
+
+
+class ErrorBoundaryGroup(TyperGroup):
+    """Click group that converts typed application errors at the CLI edge."""
+
+    def invoke(self, ctx):
+        try:
+            return super().invoke(ctx)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except PygogError as error:
+            context = get_context(ctx)
+            emit_error(
+                error,
+                json_output=context.json_output,
+                verbose=context.verbose,
+            )
+            raise typer.Exit(error.exit_code)
+
 
 app = typer.Typer(
     name="pygog",
     help="pygog - Google in your terminal.\n\nFast, script-friendly CLI for Gmail, Calendar, Drive, Tasks, and more.",
     no_args_is_help=True,
     rich_markup_mode="rich",
+    cls=ErrorBoundaryGroup,
 )
 
 console = Console()
 err_console = Console(stderr=True)
 
-
-class State:
-    def __init__(self):
-        self.account: str | None = None
-        self.client: str = "default"
-        self.json_output: bool = False
-        self.plain_output: bool = False
-        self.color: str = "auto"
-        self.verbose: bool = False
-        self.force: bool = False
-        self.no_input: bool = False
-
-    @property
-    def config(self):
-        return get_config()
+# Compatibility export: callers importing ``pygog.cli.State`` or
+# ``pygog.cli.state`` continue to receive the typed context object.
+State = CliContext
 
 
-state = State()
+def _configure_consoles(color: str) -> None:
+    """Configure Rich through its public constructor options."""
+    global console, err_console
+
+    if color == "never":
+        console = Console(force_terminal=False, no_color=True)
+        err_console = Console(stderr=True, force_terminal=False, no_color=True)
+    elif color == "always":
+        console = Console(force_terminal=True, no_color=False)
+        err_console = Console(stderr=True, force_terminal=True, no_color=False)
+    else:
+        console = Console(force_terminal=None, no_color=None)
+        err_console = Console(stderr=True, force_terminal=None, no_color=None)
 
 
 def version_callback(value: bool):
@@ -49,14 +72,14 @@ def version_callback(value: bool):
 
 @app.callback()
 def main(
-    account: Optional[str] = typer.Option(
+    account: str | None = typer.Option(
         None,
         "--account",
         "-a",
         help="Account email or alias to use",
         envvar="GOG_ACCOUNT",
     ),
-    client: Optional[str] = typer.Option(
+    client: str | None = typer.Option(
         None,
         "--client",
         help="OAuth client name",
@@ -74,8 +97,8 @@ def main(
         help="Output plain TSV to stdout",
         envvar="GOG_PLAIN",
     ),
-    color: str = typer.Option(
-        "auto",
+    color: str | None = typer.Option(
+        None,
         "--color",
         help="Color mode: auto, always, never",
         envvar="GOG_COLOR",
@@ -106,22 +129,27 @@ def main(
     ),
 ):
     config = get_config()
-    
-    state.account = config.resolve_account(account)
-    state.client = client or config.client
-    state.json_output = json_output or config.json_output
-    state.plain_output = plain_output or config.plain_output
-    state.color = color
-    state.verbose = verbose
-    state.force = force
-    state.no_input = no_input
-    
-    if color == "never":
-        console._force_terminal = False
-        err_console._force_terminal = False
-    elif color == "always":
-        console._force_terminal = True
-        err_console._force_terminal = True
+    context = bind_context(typer_context(), state)
+
+    selected_color = color if color is not None else config.color_mode
+    if selected_color not in {"auto", "always", "never"}:
+        raise ValidationError(
+            f"Invalid color mode '{selected_color}'. Choose auto, always, or never."
+        )
+
+    context.account = config.resolve_account(account)
+    context.client = client
+    context.json_output = bool(json_output or config.json_output)
+    context.plain_output = bool(plain_output or config.plain_output)
+    context.color = cast(Literal["auto", "always", "never"], selected_color)
+    context.verbose = verbose
+    context.force = force
+    context.no_input = no_input
+
+    if context.json_output and context.plain_output:
+        raise ValidationError("--json and --plain are mutually exclusive")
+
+    _configure_consoles(selected_color)
 
 
 app.add_typer(auth.app, name="auth", help="Manage authentication and accounts")
@@ -135,3 +163,15 @@ app.add_typer(tasks.app, name="tasks", help="Tasks operations")
 
 app.add_typer(ask.app, name="ask", help="Ask using natural language")
 
+
+def typer_context():
+    """Return the current Click context without requiring Typer injection.
+
+    Typer versions in the supported range differ in how they recognise a
+    callback parameter annotated as ``typer.Context``.  Looking up Click's
+    current context keeps direct Python calls backward-compatible while still
+    populating ``Context.obj`` for real CLI invocations.
+    """
+    from typer.main import get_current_context
+
+    return get_current_context(silent=True)
