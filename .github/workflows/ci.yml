@@ -1,0 +1,87 @@
+name: CI
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install locked development environment
+        run: uv sync --locked --all-groups --extra agent
+
+      - name: Run tests with coverage
+        run: uv run pytest --cov=pygog --cov-report=term-missing --cov-fail-under=30
+
+      - name: Check Ruff lint
+        run: uv run ruff check pygog tests
+
+      - name: Check Ruff formatting
+        run: uv run ruff format --check pygog tests
+
+      - name: Run mypy
+        run: uv run mypy pygog
+
+      - name: Run Bandit
+        run: uv run bandit --recursive pygog --severity-level medium
+
+      - name: Audit dependencies
+        run: uv run pip-audit
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Install wheel in a clean environment
+        shell: bash
+        run: |
+          wheel_venv="$RUNNER_TEMP/pygog-wheel"
+          uv venv "$wheel_venv"
+          uv pip install --python "$wheel_venv/bin/python" dist/*.whl
+          "$wheel_venv/bin/pygog" --help
+
+  windows-smoke:
+    name: Windows smoke test
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install locked development environment
+        run: uv sync --locked --all-groups
+
+      - name: Run CLI help smoke test
+        run: uv run pygog --help
