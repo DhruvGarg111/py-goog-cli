@@ -5,14 +5,15 @@ from __future__ import annotations
 from typing import Literal, cast
 
 import typer
-from rich.console import Console
 from typer.core import TyperGroup
 
 from pygog import __version__
+from pygog.agent import core as agent_core
 from pygog.commands import ask, auth, calendar, config_cmd, drive, gmail, tasks, time_cmd
 from pygog.config import get_config
 from pygog.context import CliContext, bind_context, get_context, state
 from pygog.errors import PygogError, ValidationError, emit_error
+from pygog.utils.console import create_console
 
 
 class ErrorBoundaryGroup(TyperGroup):
@@ -41,8 +42,10 @@ app = typer.Typer(
     cls=ErrorBoundaryGroup,
 )
 
-console = Console()
-err_console = Console(stderr=True)
+console = create_console()
+err_console = create_console(stderr=True)
+
+_COMMAND_MODULES = (ask, auth, calendar, config_cmd, drive, gmail, tasks, time_cmd, agent_core)
 
 # Compatibility export: callers importing ``pygog.cli.State`` or
 # ``pygog.cli.state`` continue to receive the typed context object.
@@ -50,18 +53,20 @@ State = CliContext
 
 
 def _configure_consoles(color: str) -> None:
-    """Configure Rich through its public constructor options."""
+    """Configure CLI and imported command consoles through Rich's public API."""
     global console, err_console
 
-    if color == "never":
-        console = Console(force_terminal=False, no_color=True)
-        err_console = Console(stderr=True, force_terminal=False, no_color=True)
-    elif color == "always":
-        console = Console(force_terminal=True, no_color=False)
-        err_console = Console(stderr=True, force_terminal=True, no_color=False)
-    else:
-        console = Console(force_terminal=None, no_color=None)
-        err_console = Console(stderr=True, force_terminal=None, no_color=None)
+    selected_color = cast(Literal["auto", "always", "never"], color)
+    console = create_console(selected_color)
+    err_console = create_console(selected_color, stderr=True)
+
+    # Command modules are imported before the callback runs and therefore own
+    # their initial Console instances. Rebind every command output sink so the
+    # global option controls real command output, not just this module.
+    for command_module in _COMMAND_MODULES:
+        setattr(command_module, "console", console)
+        if hasattr(command_module, "err_console"):
+            setattr(command_module, "err_console", err_console)
 
 
 def version_callback(value: bool):

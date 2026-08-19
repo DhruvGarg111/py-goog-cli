@@ -48,6 +48,7 @@ def reset_cli_state(monkeypatch):
     yield
     for name, value in original.items():
         setattr(state, name, value)
+    cli._configure_consoles("auto")
 
 
 def make_config(**data) -> Config:
@@ -414,3 +415,35 @@ def test_explicit_color_mode_overrides_configured_color_mode():
     assert state.color == "always"
     assert cli.console.is_terminal is True
     assert cli.err_console.is_terminal is True
+
+
+def test_global_color_mode_applies_to_real_command_output():
+    config = make_config(color="auto")
+
+    with (
+        patch("pygog.cli.get_config", return_value=config),
+        patch("pygog.commands.time_cmd.get_config", return_value=config),
+    ):
+        always = CliRunner().invoke(
+            cli.app,
+            ["--color", "always", "time", "now", "--timezone", "Invalid/Zone"],
+        )
+        never = CliRunner().invoke(
+            cli.app,
+            ["--color", "never", "time", "now", "--timezone", "Invalid/Zone"],
+        )
+
+    assert always.exit_code == 1
+    assert "\x1b[31mUnknown timezone:\x1b[0m" in always.stdout
+    assert never.exit_code == 1
+    assert "\x1b[" not in never.stdout
+    assert "Unknown timezone: Invalid/Zone" in never.stdout
+
+
+def test_global_color_mode_rebinds_agent_core_consoles():
+    from pygog.agent import core as agent_core
+
+    cli._configure_consoles("never")
+
+    assert agent_core.console.no_color is True
+    assert agent_core.err_console.no_color is True

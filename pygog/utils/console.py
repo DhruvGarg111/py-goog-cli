@@ -3,8 +3,20 @@
 from __future__ import annotations
 
 import sys
+from typing import Literal
 
 from rich.console import Console
+
+ColorMode = Literal["auto", "always", "never"]
+
+
+def create_console(color: ColorMode = "auto", *, stderr: bool = False) -> Console:
+    """Create a Rich console for the selected global color mode."""
+    if color == "never":
+        return Console(stderr=stderr, force_terminal=False, no_color=True)
+    if color == "always":
+        return Console(stderr=stderr, force_terminal=True, no_color=False)
+    return Console(stderr=stderr, force_terminal=None, no_color=None)
 
 
 def safe_print(console: Console, text: str) -> None:
